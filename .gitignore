@@ -1,0 +1,10 @@
+*.txt
+kiddoo
+
+*.cmi
+*.cmx
+*.o
+
+scanner.ml
+parser.ml
+parser.mli
