@@ -1,0 +1,41 @@
+{* integers and rounding *}
+#lib
+def floor(x)
+#lib 
+def ceil(x)
+
+def fpart(x) = (x - ceil(x))/(x < 0) ; (x - floor(x))
+
+def round(x) = floor(x)/(fpart(x) < 0.5) ; ceil(x)
+
+def isInt(x) = floor(x) == x
+
+
+{* definition *}
+
+con undef = 0/0
+#lib
+def isDef(expr)
+
+
+{* special piecewise *}
+
+def abs(x) = x/(x>0) ; -x
+
+def sgn(x) = 1/(x>0) ; -1
+
+def max(a, b) = a/(a >= b) ; b
+
+def min(a, b) = a/(a <= b) ; b
+
+
+{* binary operator chains *}
+
+def SUM[f<0 1>](i,N) = ( 0/(i>N) ; f(i) + SUM[f](i+1, N) ) / isInt(i)
+
+def PROD[f<0 1>](i,N) = ( 1/(i>N) ; f(i) * PROD[f](i+1, N) ) / isInt(i)
+
+def DISJ[f<0 1>](i,N) = ( 0/(i>N) ; f(i) | DISJ[f](i+1, N) ) / isInt(i)
+
+def CONJ[f<0 1>](i,N) = ( 1/(i>N) ; f(i) & CONJ[f](i+1, N) ) / isInt(i)
+

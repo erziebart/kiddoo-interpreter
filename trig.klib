@@ -1,0 +1,74 @@
+{* for exp, ln, and sqrt *}
+use exp
+
+
+{* trigonometry *}
+
+con pi = 3.141592653589793
+
+con tau = 6.283185307179586
+#lib
+def sin(x)
+#lib
+def cos(x)
+#lib
+def tan(x)
+
+def cot(x) = 1/tan(x)
+
+def sec(x) = 1/cos(x)
+
+def csc(x) = 1/sin(x)
+
+def rad(x) = tau/360 x
+
+def deg(x) = 360/tau x
+
+def arcsin(x) = 
+    #lib
+    def asin(x)
+    -> asin(x) / (-1 <= x & x <= 1)
+
+def arccos(x) = 
+    #lib
+    def acos(x)
+    -> acos(x) / (-1 <= x & x <= 1)
+
+def arctan(x) = 
+    #lib
+    def atan(x)
+    -> atan(x)
+
+def arccot(x) = tau/4/(x == 0) ; arctan(1/x)
+
+def arcsec(x) = arccos(1/x) / (x != 0)
+
+def arccsc(x) = arcsin(1/x) / (x != 0)
+
+
+{* hyperbolic trigonometric *}
+
+def sinh(x) = (exp(x) - exp(-x)) / 2
+
+def cosh(x) = (exp(x) + exp(-x)) / 2
+
+def tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+
+def coth(x) = (exp(x) + exp(-x)) / (exp(x) - exp(-x))
+
+def sech(x) = 2 / (exp(x) + exp(-x))
+
+def csch(x) = 2 / (exp(x) - exp(-x))
+
+def arcsinh(x) = ln(x + sqrt(x^2 + 1)) 
+
+def arccosh(x) = ln(x + sqrt(x^2 - 1))
+
+def arctanh(x) = (1/2) ln((1 + x) / (1 - x))
+
+def arccoth(x) = (1/2) ln((x + 1) / (x - 1))
+
+def arcsech(x) = ln((1 + sqrt(1 - x^2)) / x)
+
+def arccsch(x) = ln((1 + sqrt(1 + x^2)) / x)
+

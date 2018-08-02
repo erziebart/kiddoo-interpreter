@@ -1,0 +1,25 @@
+use util
+
+
+{* main functions *}
+
+def Array_make[init<0 1>](len, i) = 
+    -> len/(i == 0.5) ; init(i)
+
+def Array_set[arr<0 1>](idx, val, i) = 
+    -> 
+
+def Array_get[arr<0 1>](idx) = 
+    -> 
+
+def Array_length[arr<0 1>] = 
+    -> arr(0.5)
+
+
+{* initializers *}
+
+def zeros(i) = 0
+
+def ones(i) = 1
+
+def count(i) = i

@@ -1,0 +1,21 @@
+{* exponents, logs, and roots *}
+
+def sqrt(x) = x^0.5
+
+#lib
+def exp(x)
+
+con e = exp(1)
+
+def ln(x) = 
+    #lib
+    def loge(x)
+    -> loge(x)/(x>0)
+
+def log(b,x) = 
+    #lib
+    def loge(x)
+    -> loge(x)/loge(b)/(x>0)
+
+def gamma = 0.5772156649015329
+
