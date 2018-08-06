@@ -4,7 +4,7 @@
 %token EQ NEQ LT GT LEQ GEQ
 %token AND OR NOT
 %token SEMI
-%token DEFINE CONST VAR USE ASSIGN ARROW
+%token DEFINE CONST USE ASSIGN ARROW
 %token LPAREN RPAREN LBRACE RBRACE COMMA
 %token LIB
 %token <string> ID FID FFID
@@ -38,8 +38,6 @@ top_decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | LIB DEFINE func { Function($3, None) }
   | CONST ID ASSIGN def { Constant($2, $4) }
-  | VAR ID LBRACE expr COMMA expr COMMA expr RBRACE { Variable($2, $4, $6, $8) }
-  | VAR FFID expr COMMA expr COMMA expr RBRACE { Variable($2, $3, $5, $7) }
   | ARROW actuals_list { Expression(List.rev $2) }
   | USE ID { Import($2) }
 
@@ -63,7 +61,7 @@ def:
   | expr { Single($1) }
 
 expr:
-    expr SEMI expr { Part($1, $3) } 
+    expr SEMI expr { Binop($1, Part, $3) } 
   | expr OR expr { Binop($1, Or, $3) }
   | expr AND expr {Binop($1, And, $3) }
   | expr LT expr { Binop($1, Less, $3) }
