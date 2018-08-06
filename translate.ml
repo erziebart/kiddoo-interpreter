@@ -6,8 +6,8 @@ module StringMap = Map.Make(String)
 (* Call Tree *)
 type node =
     Root
-  | Func of func * def * node
-  | Fcall of (string*node)list * (string*(float*bool))list * (float*bool)StringMap.t * node
+  | Func of func * def * node(*parent*)
+  | Fcall of (string*node)list(*fargs*) * (string*(float*bool))list(*args*) * (float*bool)StringMap.t(*consts*) * node(*parent*)
 
 (* flag a call to the runtime library *)
 exception LibCall
