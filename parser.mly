@@ -61,7 +61,7 @@ def:
   | expr { Single($1) }
 
 expr:
-    expr SEMI expr { Part($1, $3) } 
+    expr SEMI expr { Binop($1, Part, $3) } 
   | expr OR expr { Binop($1, Or, $3) }
   | expr AND expr {Binop($1, And, $3) }
   | expr LT expr { Binop($1, Less, $3) }

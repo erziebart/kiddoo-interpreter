@@ -192,6 +192,9 @@ let rec translate globals consts ast =
               if v1 <> 0. then 1., u1 else
               let (v2, u2) = eval constants call_path e2 in
               float_of_bool(v2 <> 0.), u1 || u2 )
+          | Part -> 
+              (let (v1,u1) = eval constants call_path e1 in
+              if u1 then eval constants call_path e2 else v1, u1 )
           
           (* eval both sides for all cases *)
           | Add -> 
@@ -239,10 +242,6 @@ let rec translate globals consts ast =
             Neg -> ~-. v, u
           | Not -> float_of_bool(v = 0.), u )
 
-    | Part(e1, e2) -> 
-        (let (v1,u1) = eval constants call_path e1 in
-        if u1 then eval constants call_path e2 else v1, u1 )
-    
     | Var(id) -> (
         try path_find_value call_path id with
         | Not_found -> try StringMap.find id constants with
