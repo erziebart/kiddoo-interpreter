@@ -6,7 +6,7 @@ module StringMap = Map.Make(String)
 
 let _ =
   match Array.length Sys.argv with
-    | 1 -> ( (* run command line interpreter *)
+    (*| 1 -> ( (* run command line interpreter *)
         try 
           let lexbuf = Lexing.from_channel stdin in
           let rec parse_stmt (calltree, consts) = 
@@ -17,7 +17,7 @@ let _ =
             with Failure(s) -> print_endline s;
           in
           parse_stmt (Root, StringMap.empty)
-        with Sys_error(s) -> print_endline s; exit 0)
+        with Sys_error(s) -> print_endline s; exit 0)*)
     | 2 -> ( (* translate a file as input *)
         try
           let infile = Sys.argv.(1) in
@@ -28,5 +28,5 @@ let _ =
         with 
           | Failure(s) -> print_endline s; exit 0 
           | Sys_error(s) -> print_endline s; exit 0)
-    | _ -> print_endline ("Usage: " ^ Sys.argv.(0) ^ " [<input_file>]")
+    | _ -> print_endline ("Usage: " ^ Sys.argv.(0) ^ " <input_file>")
 
