@@ -22,7 +22,6 @@ type func = {
 type decl = 
     Function of func * def
   | Constant of string * def
-  | Variable of string * expr * expr * expr
   | Expression of expr list
   | Import of string
 and def = 
@@ -75,7 +74,6 @@ let string_of_func func = func.fname ^ string_of_fparams func.fparams ^ "(" ^ St
 let rec string_of_decl = function
     Function(func, def) -> "def " ^ string_of_func func ^ " = " ^ string_of_def def
   | Constant(id,def) -> "con " ^ id ^ " = " ^ string_of_def def
-  | Variable(id,start,stop,step) -> "var " ^ id ^ " [" ^ string_of_expr start ^ "; " ^ string_of_expr stop ^ "; " ^ string_of_expr step ^ "]"
   | Expression(exprs) -> "-> " ^ String.concat ", " (List.map string_of_expr exprs)
   | Import(s) -> "use" ^ s
 and string_of_def = function

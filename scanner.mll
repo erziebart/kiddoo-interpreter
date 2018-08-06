@@ -13,7 +13,6 @@ rule token = parse
   | '^'                  { POWER }
   | "def"                { DEFINE }
   | "con"                { CONST }
-  | "var"                { VAR }
   | "use"                { USE }
   | '='                  { ASSIGN }
   | "->"                 { ARROW }

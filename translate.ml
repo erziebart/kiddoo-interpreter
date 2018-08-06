@@ -12,7 +12,7 @@ type node =
 (* flag a call to the runtime library *)
 exception LibCall
 
-let rec translate globals consts vars ast =
+let rec translate globals consts ast =
   (* evaluates calls to runtime library functions *)
   let lib_eval name args = 
     let check_args n =
@@ -292,210 +292,30 @@ let rec translate globals consts vars ast =
           let (call, expr) = build_call node fnodes lcls constants StringMap.empty in
           eval constants call expr ) with 
           | LibCall -> lib_eval id lcls )
-(*
-    | VarN -> if const then raise( Failure("const expr cannot depend on n")) else n, false
-    | VarT -> if const then raise( Failure("const expr cannot depend on t")) else t, false
-*)
-  in
-
-  (*
-  (* get the sequence of n and t inputs *)
-  let get_inputs constants =
-    (* find the range values *)
-    let nstart_val = try (
-      let (v,u) = StringMap.find "nstart" constants in
-      if u then -10. else v ) with
-      | Not_found -> -10.
-    in
-    let nstop_val = try (
-      let (v,u) = StringMap.find "nstop" constants in
-      if u then nstart_val +. 20. else v ) with
-      | Not_found -> nstart_val +. 20.
-    in
-    let nstep_val = try (
-      let (v,u) = StringMap.find "nstep" constants in
-      if u then 0.1 else v ) with
-      | Not_found -> 0.1
-    in
-    let tstart_val = try (
-      let (v,u) = StringMap.find "tstart" constants in
-      if u then 0. else v ) with
-      | Not_found -> 0.
-    in
-    let tstop_val = try (
-      let (v,u) = StringMap.find "tstop" constants in
-      if u then tstart_val +. 10. else v ) with
-      | Not_found -> tstart_val +. 10.
-    in
-    let tstep_val = try (
-      let (v,u) = StringMap.find "tstep" constants in
-      if u then 1. else v ) with
-      | Not_found -> 0.1
-    in
-
-    (* add to the constants map *)
-    let constants = StringMap.add "nstart" (nstart_val,false) (
-                    StringMap.add "nstop" (nstop_val,false) (
-                    StringMap.add "nstep" (nstep_val,false) (
-                    StringMap.add "tstart" (tstart_val,false) (
-                    StringMap.add "tstop" (tstop_val,false) (
-                    StringMap.add "tstep" (tstep_val,false) ( 
-                    constants))))))
-    in
-
-    (* make the list of inputs *)
-    let rec make_list t l = 
-      let rec make_curve t n l = 
-        if n <= nstop_val then (n,t) :: make_curve t (n +. nstep_val) l else l
-      in
-      if t <= tstop_val then make_curve t nstart_val [] :: make_list (t +. tstep_val) l else l
-    in
-
-    make_list tstart_val [], constants
-  in
-
-  (* map the inputs to the outputs *)
-  let solve inputs constants branch =
-    (* makes a no argument check before creating a call *)
-    let build_call_noarg node name = match node with
-        Func(func,_,_) -> (
-          if (List.length func.fparams = 0 && List.length func.locals = 0)
-          then (try build_call node [] [] constants StringMap.empty with
-            | LibCall -> raise( Failure(name ^ " must have a definition")) )
-          else raise( Failure(name ^ " function cannot take arguments")) )
-        | _ -> raise( Failure("call must be built with Func node"))
-    in
-
-    (* mappers to generate the results *)
-    let eval_mapper (path, expr) l =
-      List.map (fun (n,t) -> eval n t false constants path expr) l
-    in
-    let n_mapper l = List.map (fun (n,_) -> (n,false)) l in
-    let undef_mapper l = List.map (fun (_,_) -> (0.,true)) l in
-
-    (* generate the results for solving *)
-    let out_map = path_find branch ["x";"y"] StringMap.empty in
-    let (xres, yres) = match (StringMap.mem "x" out_map, StringMap.mem "y" out_map) with
-        (true, true) -> (
-          let xnode = StringMap.find "x" out_map
-          and ynode = StringMap.find "y" out_map
-          in
-          let xcall = build_call_noarg xnode "x"
-          and ycall = build_call_noarg ynode "y" 
-          in
-          List.map (eval_mapper xcall) inputs, List.map (eval_mapper ycall) inputs )
-      | (true, false) -> (
-          let xnode = StringMap.find "x" out_map
-          in
-          let xcall = build_call_noarg xnode "x"
-          in
-          List.map (eval_mapper xcall) inputs, List.map n_mapper inputs )
-      | (false, true) -> (
-          let ynode = StringMap.find "y" out_map
-          in
-          let ycall = build_call_noarg ynode "y"
-          in
-          List.map n_mapper inputs, List.map (eval_mapper ycall) inputs )
-      | (false, false) -> (
-          List.map undef_mapper inputs, List.map undef_mapper inputs )
-    in
-    
-    (* map the separate result lists into points *)
-    let build_curve xcurve ycurve = 
-      let build_point xval yval = match (xval, yval) with
-          ((v1,false),(v2,false)) -> (v1, v2, false)
-        | ((v1,_),(v2,_)) -> (v1, v2, true)
-      in
-      List.map2 build_point xcurve ycurve
-    in
-    List.map2 build_curve xres yres
-  in
-
-  (* computes the dimensions of the result lists *)
-  let result_dims results = 
-    try (List.length (List.hd results), List.length results) with
-    | Failure(s) -> (0,0)
-  in
-
-
-  (* produce a string from resulting values *)
-  let string_of_results results =
-    let string_of_curve curve = 
-      let string_of_point (x,y,u) = (string_of_float x) ^ " " ^ (string_of_float y) ^ " " ^ ((fun u -> if u then "1" else "0") u) in
-      String.concat "\r\n" (List.map string_of_point curve) in
-    String.concat "\r\n" (List.map string_of_curve results)
-  in
-  *)
-
-  (* get the program as input and translate *)
-  (*
-  let infile = Sys.argv.(1) in
-  let ic = open_in infile in 
-  let lexbuf = Lexing.from_channel ic in
-  let ast = Parser.program Scanner.token lexbuf in
-  *)
- 
-  (* generate the list of variable input values *) 
-  let generate_inputs vars =
-    let starts, stops, steps, names = 
-      let add_once k (start,stop,step) (starts, stops, steps, names) = 
-        start :: starts, stop :: stops, step :: steps, k :: names
-      in
-      StringMap.fold add_once vars ([],[],[],[])
-    in
-
-    let rec succ cstarts cstops csteps = function
-      | [] -> []
-      | value -> (
-          let head = List.hd value
-          and cstart = List.hd cstarts
-          and cstop = List.hd cstops
-          and cstep = List.hd csteps
-          in
-          if head +. cstep < cstop
-          then (head +. cstep) :: (List.tl value)
-          else cstart :: succ (List.tl cstarts) (List.tl cstops) (List.tl csteps) (List.tl value) )
-    in
-
-    let rec list_all cur = 
-      let next = succ starts stops steps cur in
-      if (next = starts) then [cur]
-      else cur :: (list_all next)
-    in
-
-    (list_all starts, names)
   in
 
   (* parse a global statement *)
-  let parse_global (globals, consts, vars) = function
-      | Function(func,def) -> (Func(func, def, globals), consts, vars)
+  let parse_global (globals, consts) = function
+      | Function(func,def) -> (Func(func, def, globals), consts)
       | Constant(name,def) -> (
           let tmpfunc = Func({fname = name; fparams = []; locals = []}, def, globals) in
           let (path, expr) = build_call tmpfunc [] [] consts StringMap.empty in
           let (v,u) = eval consts path expr in
-          (globals, StringMap.add name (v,u) consts, StringMap.remove name vars) )
-      | Variable(name,e1,e2,e3) -> 
-          let start = eval consts globals e1 
-          and stop = eval consts globals e2
-          and step = eval consts globals e3
-          in
-          let is_undef = (snd start) || (snd stop) || (snd step) in
-          if is_undef then raise (Failure("params on variable " ^ name ^ " not defined"))
-          else (globals, StringMap.remove name consts, StringMap.add name (fst start, fst stop, fst step) vars)
+          (globals, StringMap.add name (v,u) consts) )
       | Expression(exprs) -> (
-          let dims = 
-            let dim k (start,stop,step) l = 
+          let dims = []
+            (*let dim k (start,stop,step) l = 
               truncate ((stop -. start) /. step) :: l
             in
-            StringMap.fold (dim) vars []
+            StringMap.fold (dim) vars []*)
           in
           
-          let inputs, names = generate_inputs vars in
+          (*let inputs, names = generate_inputs vars in
           let solve input = 
             let add_from_lists = (fun m k v -> StringMap.add k (v,false) m) in
             let tmpconsts = List.fold_left2 (add_from_lists) consts names (input) in
             List.map (eval tmpconsts globals) exprs 
-          in
+          in*)
           
           let print_tuple tuple = 
             let values = List.map (fst) tuple in
@@ -506,31 +326,21 @@ let rec translate globals consts vars ast =
             else print_endline (String.concat ", " outputs);
           in
 
-          let results = List.map (solve) inputs in 
-          if List.length dims = 0 then List.iter (print_tuple) results
+          (*let results = List.map (solve) inputs in *)
+          let results = List.map (eval consts globals) exprs in
+          if List.length dims = 0 then print_tuple results
           else print_endline (String.concat " " (List.map (string_of_int) dims));
-          (globals, consts, vars) )
+          (globals, consts) )
       | Import(file) -> (
           let import = file ^ ".klib" in
           try (
             let ic = open_in import in 
             let lexbuf = Lexing.from_channel ic in
             let ast = Parser.program Scanner.token lexbuf in
-            translate globals consts vars ast) 
+            translate globals consts ast) 
           with
           | Sys_error(_) -> print_endline ("cannot use file " ^ file); 
-          (globals, consts, vars) )
+          (globals, consts) )
   in
 
-  List.fold_left parse_global (globals, consts, vars) ast
-(*
-  let (inputs, consts) = get_inputs consts in
-  let results = solve inputs consts globals in 
-  let i = String.rindex infile '.' in
-  let outfile = (String.sub infile 0 i) ^ ".g" in
-  let oc = open_out outfile in
-  let (nrange, trange) = result_dims results in
-  fprintf oc "%d %d\n" nrange trange;
-  fprintf oc "%s" (string_of_results results);
-  close_out oc
-*)
+  List.fold_left parse_global (globals, consts) ast
