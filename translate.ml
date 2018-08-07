@@ -301,7 +301,7 @@ let rec translate globals consts ast =
           let (path, expr) = build_call tmpfunc [] [] consts StringMap.empty in
           let (v,u) = eval consts path expr in
           (globals, StringMap.add name (v,u) consts) )
-      | Expression(exprs) -> (
+      | Expression(expr) -> (
           let dims = []
             (*let dim k (start,stop,step) l = 
               truncate ((stop -. start) /. step) :: l
@@ -326,7 +326,7 @@ let rec translate globals consts ast =
           in
 
           (*let results = List.map (solve) inputs in *)
-          let results = List.map (eval consts globals) exprs in
+          let results = List.map (eval consts globals) [expr] in
           if List.length dims = 0 then print_tuple results
           else print_endline (String.concat " " (List.map (string_of_int) dims));
           (globals, consts) )
