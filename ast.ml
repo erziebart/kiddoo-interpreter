@@ -9,6 +9,7 @@ type expr =
   | Unop of uop * expr
   | Var of string
   | Call of string * string list * expr list 
+  | Null
 
 type sigture = string * int * int
 
@@ -61,6 +62,7 @@ let rec string_of_expr = function
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ String.concat ", " (List.map string_of_expr a) ^ ")"
   | Var(s) -> s
+  | Null -> ""
 
 let string_of_sigture (id, l1, l2) = id ^ "<" ^ string_of_int l1 ^ " " ^ string_of_int l2 ^ ">"
 
