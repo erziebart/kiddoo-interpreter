@@ -44,11 +44,11 @@ let rec check_stmt depth calltree =
   let rec check_expr calltree funptrs = function
     | Binop(e1,_,e2) -> check_expr calltree (check_expr calltree funptrs e1) e2
     | Unop(_,e) -> check_expr calltree funptrs e
-    | Var(id) -> if find_value depth id calltree then funptrs else raise(Failure("unknown variable "^id))
+    | Var(id) -> if find_value (depth+1) id calltree then funptrs else raise(Failure("unknown variable "^id))
     | Call(id,fargs,args) -> (
         let funptrs = List.fold_left (check_expr calltree) funptrs args in
         try 
-          let fdecl,d = find_func depth id calltree in
+          let fdecl,d = find_func (depth+1) id calltree in
           match fdecl with
             | Fundecl(far,ar,_) -> (
                 let farlen = List.length far and arlen = List.length ar in
@@ -105,3 +105,28 @@ let rec check_stmt depth calltree =
       parse_inner [] head close; head
   | Import(file) -> raise(Failure("imports not yet implemented"))
 
+
+let _ = 
+
+  let string_of_closure close = close.name ^ " calls: " ^ String.concat " " (List.map (fst) (StringMap.bindings close.calls)) in
+
+  let string_of_ctree_decl = function
+    | Decl(Fundecl(_,_,close),_,_) -> string_of_closure close
+    | Decl(Condecl(close),_,_) -> string_of_closure close
+    | Root -> raise(Failure("Whoops!"))
+  in
+
+  try
+    let infile = Sys.argv.(1) in
+    let ic = open_in infile in
+    let lexbuf = Lexing.from_channel ic in
+    let ast = Parser.program Scanner.token lexbuf in
+    let check_and_print calltree decl = 
+      let ctree_leaf = check_stmt 0 calltree decl in
+      print_endline (string_of_ctree_decl ctree_leaf); ctree_leaf
+    in
+    ignore (List.fold_left check_and_print Root ast)
+  with 
+    | Failure(s) -> print_endline s; exit 0 
+    | Sys_error(s) -> print_endline s; exit 0
+  

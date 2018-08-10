@@ -1,0 +1,5 @@
+def fn(x) = 2 + 3x
+
+def fn2(y,z) = fn(1) + y fn(2) - z fn(3)
+
+-> fn2(3,2) - fn(-1)
