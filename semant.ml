@@ -104,9 +104,17 @@ let rec check_stmt depth calltree =
       let close = init_closure "->" expr in
       let head = Decl(Condecl(close),depth,calltree) in
       parse_inner [] head close; head
-  | Import(file) -> raise(Failure("imports not yet implemented"))
+  | Import(file) ->
+      let import = file ^ ".klib" in
+      try (
+        let ic = open_in import in 
+        let lexbuf = Lexing.from_channel ic in
+        let ast = Parser.program Scanner.token lexbuf in
+        List.fold_left (check_stmt depth) calltree ast )
+      with
+      | Sys_error(_) -> print_endline ("cannot use file " ^ file); calltree
 
-
+(* for testing purposes *)
 let _ = 
 
   let string_of_closure close = close.name ^ " calls: " ^ String.concat " " (List.map (fst) (StringMap.bindings close.calls)) in

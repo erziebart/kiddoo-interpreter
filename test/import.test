@@ -2,4 +2,4 @@ use std
 
 -> cos(pi/2)
 -> sin(pi/2)
--> print(scan,scan)
+-> print(scan(),scan())
