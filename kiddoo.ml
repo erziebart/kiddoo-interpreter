@@ -1,6 +1,6 @@
 open Ast
 open Printf
-open Translate
+open Semant
 
 module StringMap = Map.Make(String)
 
@@ -24,7 +24,8 @@ let _ =
           let ic = open_in infile in
           let lexbuf = Lexing.from_channel ic in
           let ast = Parser.program Scanner.token lexbuf in
-          ignore (Translate.translate Root StringMap.empty ast)
+          let (_,constants) = List.fold_left (Semant.check_stmt 0) (Root,[]) ast in
+          ignore (List.fold_left (Translate.translate 0 StringMap.empty) StringMap.empty constants)
         with 
           | Failure(s) -> print_endline s; exit 0 
           | Sys_error(s) -> print_endline s; exit 0)
