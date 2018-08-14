@@ -1,0 +1,8 @@
+def func0(x) = x/2
+
+def func[f<0 1>]() = 
+  def funcA(i) = f(i^2)
+  def funcB[f<0 1>]() = f(2)
+  -> funcB[funcA]()
+
+-> func[func0]()

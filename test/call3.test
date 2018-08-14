@@ -1,0 +1,5 @@
+def func0(x) = x^2/2
+
+def func1[f<0 1>](n) = n f(2)
+
+-> func1[func0](3)

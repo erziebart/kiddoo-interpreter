@@ -175,8 +175,8 @@ let rec translate depth fconsts consts close =
         in
         let values = List.map (eval consts fconsts calls) args
         and fvalues = List.map 
-          (fun id -> try fst (find_func id) with 
-            | Not_found -> raise(Failure("function argument " ^ id ^ " missing")) 
+          (fun name -> try fst (find_func name) with 
+            | Not_found -> raise(Failure("function argument " ^ name ^ " missing")) 
           ) fargs
         in
         match funptr with

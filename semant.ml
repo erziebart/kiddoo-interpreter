@@ -40,13 +40,23 @@ let rec check_stmt depth (calltree,constants) =
     | Root -> raise(Not_found)
   in
 
+  (* finds a function and adds it to a stringmap -- used on function arguments *)
+  let find_and_add calltree map id = try
+    let (fdecl,d) = find_func (depth+1) id calltree in
+    match fdecl with
+      | Fundecl(_,_,_) -> StringMap.add id (fdecl,d) map
+      | _ -> raise(Failure("trying to pass non-function "^id^" as function argument"))
+    with
+      | Found -> map
+      | Not_found -> raise(Failure("unknown function argument "^id))
+  in
+
   (* semantic check on an expression *)
   let rec check_expr calltree funptrs = function
     | Binop(e1,_,e2) -> check_expr calltree (check_expr calltree funptrs e1) e2
     | Unop(_,e) -> check_expr calltree funptrs e
     | Var(id) -> if find_value (depth+1) id calltree then funptrs else raise(Failure("unknown variable "^id))
     | Call(id,fargs,args) -> (
-        let funptrs = List.fold_left (check_expr calltree) funptrs args in
         try 
           let fdecl,d = find_func (depth+1) id calltree in
           match fdecl with
@@ -54,13 +64,14 @@ let rec check_stmt depth (calltree,constants) =
                 let farlen = List.length far and arlen = List.length ar in
                 if compare farlen (List.length fargs) = 0 then
                   if compare arlen (List.length args) = 0 then 
+                    let funptrs = List.fold_left (check_expr calltree) funptrs args in
+                    let funptrs = List.fold_left (find_and_add calltree) funptrs fargs in
                     StringMap.add id (fdecl,d) funptrs
                   else
-                    (*if id="print" then StringMap.add id (fdecl,d) funptrs else*)
                     raise(Failure("wrong number of arguments passed to "^id^", expected "^string_of_int farlen))
                 else
                   raise(Failure("wrong number of function arguments passed to "^id^", expected "^string_of_int arlen)) )
-            | _ -> raise(Failure("should have returned a function -- should not be thrown ever"))
+          | _ -> raise(Failure("should have returned a function -- should not be thrown ever"))
         with
           | Found -> funptrs
           | Not_found -> raise(Failure("unknown function "^id)) )
@@ -108,7 +119,7 @@ let rec check_stmt depth (calltree,constants) =
       | Sys_error(_) -> print_endline ("cannot use file " ^ file); calltree, constants
 
 (* for testing purposes *)
-(*let _ = 
+let _ = 
 
   let string_of_closure close = close.name ^ " calls: " ^ String.concat " " (List.map (fst) (StringMap.bindings close.calls)) in
 
@@ -131,4 +142,4 @@ let rec check_stmt depth (calltree,constants) =
   with 
     | Failure(s) -> print_endline s; exit 0 
     | Sys_error(s) -> print_endline s; exit 0
-*)
+
