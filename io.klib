@@ -1,5 +1,5 @@
 #lib
-def print
+def print(s)
 #lib
 def scan
 

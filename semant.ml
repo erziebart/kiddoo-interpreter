@@ -56,7 +56,7 @@ let rec check_stmt depth (calltree,constants) =
                   if compare arlen (List.length args) = 0 then 
                     StringMap.add id (fdecl,d) funptrs
                   else
-                    if id="print" then StringMap.add id (fdecl,d) funptrs else
+                    (*if id="print" then StringMap.add id (fdecl,d) funptrs else*)
                     raise(Failure("wrong number of arguments passed to "^id^", expected "^string_of_int farlen))
                 else
                   raise(Failure("wrong number of function arguments passed to "^id^", expected "^string_of_int arlen)) )
