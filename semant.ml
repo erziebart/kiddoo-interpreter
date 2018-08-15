@@ -119,7 +119,7 @@ let rec check_stmt depth (calltree,constants) =
       | Sys_error(_) -> print_endline ("cannot use file " ^ file); calltree, constants
 
 (* for testing purposes *)
-let _ = 
+(*let _ = 
 
   let string_of_closure close = close.name ^ " calls: " ^ String.concat " " (List.map (fst) (StringMap.bindings close.calls)) in
 
@@ -142,4 +142,4 @@ let _ =
   with 
     | Failure(s) -> print_endline s; exit 0 
     | Sys_error(s) -> print_endline s; exit 0
-
+*)
