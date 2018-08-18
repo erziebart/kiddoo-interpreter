@@ -116,70 +116,56 @@ let rec translate depth fconsts consts close =
       FloatLit(l) -> l, false
   
     | Binop(e1, op, e2) -> (
+        let (v1, u1) = eval consts fconsts calls e1 in
         match op with
-          | Div -> (* eval denominator first *)
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              if v2 = 0. then 0., true else
-              let (v1, u1) = eval consts fconsts calls e1 in
-              v1 /. v2, u1 || u2)
-
           (* short circuits *)
           | Mult -> 
-              (let (v1, u1) = eval consts fconsts calls e1 in
-              if v1 = 0. then v1, u1 else 
+              (if v1 = 0. then v1, u1 else 
               let (v2, u2) = eval consts fconsts calls e2 in
               v1 *. v2, u1 || u2 )
+          | Div -> (* eval denominator first *)
+              (if v1 = 0. then 0., true else
+              let (v2, u2) = eval consts fconsts calls e2 in
+              v2 /. v1, u1 || u2)
           | And -> 
-              (let (v1, u1) = eval consts fconsts calls e1 in
-              if v1 = 0. then v1, u1 else
+              (if v1 = 0. then v1, u1 else
               let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v2 <> 0.), u1 || u2 )
           | Or -> 
-              (let (v1, u1) = eval consts fconsts calls e1 in
-              if v1 <> 0. then 1., u1 else
+              (if v1 <> 0. then 1., u1 else
               let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v2 <> 0.), u1 || u2 )
           | Part -> 
-              (let (v1,u1) = eval consts fconsts calls e1 in
-              if u1 then eval consts fconsts calls e2 else v1, u1 )
+              (if u1 then eval consts fconsts calls e2 else v1, u1 )
           
           (* eval both sides for all cases *)
           | Add -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               v1 +. v2, u1 || u2 )
           | Sub -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               v1 -. v2, u1 || u2 )
           | Exp -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               v1 ** v2, if ((v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.)) 
                         then true else u1 || u2 )
           | Equal -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 = v2), u1 || u2 )
           | Neq -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 <> v2), u1 || u2 )
           | Less -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 < v2), u1 || u2 )
           | Leq -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 <= v2), u1 || u2 )
           | Greater -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 > v2), u1 || u2 )
           | Geq -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 >= v2), u1 || u2 ) )
 
     | Unop(uop, e) ->

@@ -78,7 +78,7 @@ expr:
 term:
     term TIMES factor { Binop($1, Mult, $3) } 
   | term noneg_factor %prec TIMES { Binop($1, Mult, $2) } 
-  | term DIVIDE factor { Binop($1, Div, $3) }
+  | term DIVIDE factor { Binop($3, Div, $1) }
   | factor { $1 }
 
 factor:
