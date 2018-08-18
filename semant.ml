@@ -7,16 +7,15 @@ type closure = {
   name: string;
   e: expr;
   mutable consts: closure list;
-  mutable calls: (metadata * int)StringMap.t
+  mutable calls: (fundata * int)StringMap.t
 }
 
-and metadata = 
-  | Fundecl of sigture list * string list * closure
-  | Condecl of closure
+and fundata = sigture list * string list * closure
 
 type ctree = 
   | Root
-  | Decl of metadata * int * ctree
+  | Fundecl of fundata * int * ctree
+  | Condecl of closure * int * ctree
 
 (* when a function is found but pointer cannot be returned *)
 exception Found
@@ -26,29 +25,24 @@ let rec check_stmt depth (calltree,constants) =
 
   (* helper functions to search for function or constant ids *)
   let rec find_value depth name = function
-    | Decl(Fundecl(_,args,_),d,p) -> 
+    | Fundecl((_,args,_),d,p) -> 
         if d<depth && List.mem name args then true else find_value d name p
-    | Decl(Condecl(close),d,p) -> 
+    | Condecl(close,d,p) -> 
         if close.name=name then true else find_value d name p
     | Root -> false
   in
   let rec find_func depth id = function
-    | Decl(Fundecl(fargs,_,close) as fundecl,d,p) -> 
+    | Fundecl((fargs,_,close) as fundecl,d,p) -> 
         if (d<depth && List.exists (fun (n,_,_) -> n=id) fargs) then raise(Found) else
           if (close.name=id) then (fundecl,d) else find_func d id p
-    | Decl(Condecl(_),d,p) -> find_func d id p
+    | Condecl(_,d,p) -> find_func d id p
     | Root -> raise(Not_found)
   in
 
   (* finds a function and adds it to a stringmap -- used on function arguments *)
-  let find_and_add calltree map id = try
-    let (fdecl,d) = find_func (depth+1) id calltree in
-    match fdecl with
-      | Fundecl(_,_,_) -> StringMap.add id (fdecl,d) map
-      | _ -> raise(Failure("trying to pass non-function "^id^" as function argument"))
-    with
-      | Found -> map
-      | Not_found -> raise(Failure("unknown function argument "^id))
+  let find_and_add calltree map id = try StringMap.add id (find_func (depth+1) id calltree) map with
+    | Found -> map
+    | Not_found -> raise(Failure("unknown function argument "^id))
   in
 
   (* semantic check on an expression *)
@@ -57,21 +51,19 @@ let rec check_stmt depth (calltree,constants) =
     | Unop(_,e) -> check_expr calltree funptrs e
     | Var(id) -> if find_value (depth+1) id calltree then funptrs else raise(Failure("unknown variable "^id))
     | Call(id,fargs,args) -> (
-        try 
+        try (
           let fdecl,d = find_func (depth+1) id calltree in
-          match fdecl with
-            | Fundecl(far,ar,_) -> (
-                let farlen = List.length far and arlen = List.length ar in
-                if compare farlen (List.length fargs) = 0 then
-                  if compare arlen (List.length args) = 0 then 
-                    let funptrs = List.fold_left (check_expr calltree) funptrs args in
-                    let funptrs = List.fold_left (find_and_add calltree) funptrs fargs in
-                    StringMap.add id (fdecl,d) funptrs
-                  else
-                    raise(Failure("wrong number of arguments passed to "^id^", expected "^string_of_int farlen))
-                else
-                  raise(Failure("wrong number of function arguments passed to "^id^", expected "^string_of_int arlen)) )
-          | _ -> raise(Failure("should have returned a function -- should not be thrown ever"))
+          let (far,ar,_) = fdecl in
+          let farlen = List.length far and arlen = List.length ar in
+          if compare farlen (List.length fargs) = 0 then
+            if compare arlen (List.length args) = 0 then 
+              let funptrs = List.fold_left (check_expr calltree) funptrs args in
+              let funptrs = List.fold_left (find_and_add calltree) funptrs fargs in
+              StringMap.add id (fdecl,d) funptrs
+            else
+              raise(Failure("wrong number of arguments passed to "^id^", expected "^string_of_int farlen))
+          else
+            raise(Failure("wrong number of function arguments passed to "^id^", expected "^string_of_int arlen)) )
         with
           | Found -> funptrs
           | Not_found -> raise(Failure("unknown function "^id)) )
@@ -97,16 +89,16 @@ let rec check_stmt depth (calltree,constants) =
   | Function(func,def) -> 
       let (decls,expr) = parse_def def in
       let close = init_closure func.fname expr in
-      let head = Decl(Fundecl(func.fparams, func.locals, close),depth,calltree) in
+      let head = Fundecl((func.fparams, func.locals, close),depth,calltree) in
       parse_inner decls head close; head, constants
   | Constant(name,def) ->
       let (decls,expr) = parse_def def in
       let close = init_closure name expr in
-      let head = Decl(Condecl(close),depth,calltree) in
+      let head = Condecl(close,depth,calltree) in
       parse_inner decls head close; head, close :: constants
   | Expression(expr) ->
       let close = init_closure "->" expr in
-      let head = Decl(Condecl(close),depth,calltree) in
+      let head = Condecl(close,depth,calltree) in
       parse_inner [] head close; head, close :: constants
   | Import(file) ->
       let import = file ^ ".klib" in

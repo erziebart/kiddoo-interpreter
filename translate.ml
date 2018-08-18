@@ -24,6 +24,7 @@ let map_filter_depth depth map =
   StringMap.filter (fun _ ls -> ls <> []) (StringMap.map filter map)
 
 (* for testing *)
+(*
 let string_of_map string_of_val map = 
   let string_of_entry k v = k ^ "->" ^ string_of_val (List.hd v) ^ " " ^ string_of_int (List.length v) in
   String.concat ", " (List.map snd (StringMap.bindings (StringMap.mapi string_of_entry map)))
@@ -32,6 +33,7 @@ let string_of_metadata (data,d) = let close = match data with
     | Fundecl(_,_,close) -> close
     | Condecl(close) -> close
   in close.name ^ ":" ^ (string_of_int d)
+*)
 
 (* evaluates a call tree closure *)
 let rec translate depth fconsts consts close =
@@ -116,70 +118,56 @@ let rec translate depth fconsts consts close =
       FloatLit(l) -> l, false
   
     | Binop(e1, op, e2) -> (
+        let (v1, u1) = eval consts fconsts calls e1 in
         match op with
-          | Div -> (* eval denominator first *)
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              if v2 = 0. then 0., true else
-              let (v1, u1) = eval consts fconsts calls e1 in
-              v1 /. v2, u1 || u2)
-
           (* short circuits *)
           | Mult -> 
-              (let (v1, u1) = eval consts fconsts calls e1 in
-              if v1 = 0. then v1, u1 else 
+              (if v1 = 0. then v1, u1 else 
               let (v2, u2) = eval consts fconsts calls e2 in
               v1 *. v2, u1 || u2 )
+          | Div -> (* eval denominator first *)
+              (if v1 = 0. then 0., true else
+              let (v2, u2) = eval consts fconsts calls e2 in
+              v2 /. v1, u1 || u2)
           | And -> 
-              (let (v1, u1) = eval consts fconsts calls e1 in
-              if v1 = 0. then v1, u1 else
+              (if v1 = 0. then v1, u1 else
               let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v2 <> 0.), u1 || u2 )
           | Or -> 
-              (let (v1, u1) = eval consts fconsts calls e1 in
-              if v1 <> 0. then 1., u1 else
+              (if v1 <> 0. then 1., u1 else
               let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v2 <> 0.), u1 || u2 )
           | Part -> 
-              (let (v1,u1) = eval consts fconsts calls e1 in
-              if u1 then eval consts fconsts calls e2 else v1, u1 )
+              (if u1 then eval consts fconsts calls e2 else v1, u1 )
           
           (* eval both sides for all cases *)
           | Add -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               v1 +. v2, u1 || u2 )
           | Sub -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               v1 -. v2, u1 || u2 )
           | Exp -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               v1 ** v2, if ((v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.)) 
                         then true else u1 || u2 )
           | Equal -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 = v2), u1 || u2 )
           | Neq -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 <> v2), u1 || u2 )
           | Less -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 < v2), u1 || u2 )
           | Leq -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 <= v2), u1 || u2 )
           | Greater -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 > v2), u1 || u2 )
           | Geq -> 
-              (let (v1, u1) = eval consts fconsts calls e1 
-              and (v2, u2) = eval consts fconsts calls e2 in
+              (let (v2, u2) = eval consts fconsts calls e2 in
               float_of_bool(v1 >= v2), u1 || u2 ) )
 
     | Unop(uop, e) ->
@@ -196,7 +184,7 @@ let rec translate depth fconsts consts close =
         (let find_func id = try StringMap.find id calls with
           | Not_found -> fst (map_find id fconsts)
         in
-        let (funptr,d) = try find_func id with
+        let ((fparams,params,close),d) = try find_func id with
           | Not_found -> raise(Failure("function " ^ id ^ " missing"))
         in
         let values = List.map (eval consts fconsts calls) args
@@ -205,13 +193,10 @@ let rec translate depth fconsts consts close =
             | Not_found -> raise(Failure("function argument " ^ name ^ " missing")) 
           ) fargs
         in
-        match funptr with
-          | Fundecl(fparams,params,close) -> 
-              let fnames = List.map (fun (s,_,_) -> s) fparams in
-              (let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
-              try (*print_endline (id ^ " -- " ^ (string_of_map string_of_metadata flocals));*) eval locals flocals close.calls close.e with
-                | Libcall -> lib_eval id values fvalues )
-          | _ -> raise(Failure("calling a non-function")) )
+        let fnames = List.map (fun (s,_,_) -> s) fparams in
+        let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
+        try eval locals flocals close.calls close.e with
+          | Libcall -> lib_eval id values fvalues )
      
      | Null -> raise(Libcall)
   in
