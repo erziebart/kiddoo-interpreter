@@ -24,6 +24,7 @@ let map_filter_depth depth map =
   StringMap.filter (fun _ ls -> ls <> []) (StringMap.map filter map)
 
 (* for testing *)
+(*
 let string_of_map string_of_val map = 
   let string_of_entry k v = k ^ "->" ^ string_of_val (List.hd v) ^ " " ^ string_of_int (List.length v) in
   String.concat ", " (List.map snd (StringMap.bindings (StringMap.mapi string_of_entry map)))
@@ -32,6 +33,7 @@ let string_of_metadata (data,d) = let close = match data with
     | Fundecl(_,_,close) -> close
     | Condecl(close) -> close
   in close.name ^ ":" ^ (string_of_int d)
+*)
 
 (* evaluates a call tree closure *)
 let rec translate depth fconsts consts close =
@@ -182,7 +184,7 @@ let rec translate depth fconsts consts close =
         (let find_func id = try StringMap.find id calls with
           | Not_found -> fst (map_find id fconsts)
         in
-        let (funptr,d) = try find_func id with
+        let ((fparams,params,close),d) = try find_func id with
           | Not_found -> raise(Failure("function " ^ id ^ " missing"))
         in
         let values = List.map (eval consts fconsts calls) args
@@ -191,13 +193,10 @@ let rec translate depth fconsts consts close =
             | Not_found -> raise(Failure("function argument " ^ name ^ " missing")) 
           ) fargs
         in
-        match funptr with
-          | Fundecl(fparams,params,close) -> 
-              let fnames = List.map (fun (s,_,_) -> s) fparams in
-              (let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
-              try (*print_endline (id ^ " -- " ^ (string_of_map string_of_metadata flocals));*) eval locals flocals close.calls close.e with
-                | Libcall -> lib_eval id values fvalues )
-          | _ -> raise(Failure("calling a non-function")) )
+        let fnames = List.map (fun (s,_,_) -> s) fparams in
+        let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
+        try eval locals flocals close.calls close.e with
+          | Libcall -> lib_eval id values fvalues )
      
      | Null -> raise(Libcall)
   in
