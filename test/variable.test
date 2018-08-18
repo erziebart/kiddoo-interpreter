@@ -1,6 +1,0 @@
-use std
-
-var n [0, 10, 1]
-var m [0, 10, 1]
-
--> print(n, m)
