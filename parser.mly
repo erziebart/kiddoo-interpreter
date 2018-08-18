@@ -38,7 +38,8 @@ top_decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | LIB DEFINE func { Function($3, None) }
   | CONST ID ASSIGN def { Constant($2, $4) }
-  | ARROW actuals_list { Expression(List.rev $2) }
+/*  | ARROW actuals_list { Expression(List.rev $2) } */
+  | ARROW expr { Expression($2) }
   | USE ID { Import($2) }
 
 decl_list:

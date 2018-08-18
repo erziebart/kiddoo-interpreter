@@ -1,0 +1,5 @@
+def fn(x) = 
+  def fna(i) = x + i
+  -> 1/(x > 0) ; fna(x) fn(x-1)
+
+-> fn(3)

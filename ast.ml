@@ -9,6 +9,7 @@ type expr =
   | Unop of uop * expr
   | Var of string
   | Call of string * string list * expr list 
+  | Null
 
 type sigture = string * int * int
 
@@ -21,7 +22,7 @@ type func = {
 type decl = 
     Function of func * def
   | Constant of string * def
-  | Expression of expr list
+  | Expression of expr 
   | Import of string
 and def = 
     Composite of decl list * expr 
@@ -61,6 +62,7 @@ let rec string_of_expr = function
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ String.concat ", " (List.map string_of_expr a) ^ ")"
   | Var(s) -> s
+  | Null -> ""
 
 let string_of_sigture (id, l1, l2) = id ^ "<" ^ string_of_int l1 ^ " " ^ string_of_int l2 ^ ">"
 
@@ -73,7 +75,8 @@ let string_of_func func = func.fname ^ string_of_fparams func.fparams ^ "(" ^ St
 let rec string_of_decl = function
     Function(func, def) -> "def " ^ string_of_func func ^ " = " ^ string_of_def def
   | Constant(id,def) -> "con " ^ id ^ " = " ^ string_of_def def
-  | Expression(exprs) -> "-> " ^ String.concat ", " (List.map string_of_expr exprs)
+(*  | Expression(exprs) -> "-> " ^ String.concat ", " (List.map string_of_expr exprs) *)
+  | Expression(expr) -> string_of_expr expr
   | Import(s) -> "use" ^ s
 and string_of_def = function
     Single(e) -> string_of_expr e ^ "\n"

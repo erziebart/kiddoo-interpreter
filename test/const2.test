@@ -1,0 +1,7 @@
+def exp(x) = 1 + x + x^2/2 + x^3/6 + x^4/24 + x^5/120
+
+con e = exp(1)
+
+con ee = exp(2)
+
+-> ee / e

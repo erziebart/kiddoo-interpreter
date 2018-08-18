@@ -1,0 +1,5 @@
+con pi = 3.14159
+
+def cosh(x) = 1 + x^2/2 + x^4/24
+
+-> cosh(pi)

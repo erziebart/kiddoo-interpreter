@@ -1,12 +1,15 @@
 .PHONY: default
 default: kiddoo
 
-kiddoo: kiddoo.ml translate.cmx
+kiddoo: kiddoo.ml semant.cmx translate.cmx
 	ocamlopt -c kiddoo.ml
-	ocamlopt ast.cmx parser.cmx scanner.cmx translate.cmx kiddoo.cmx -o kiddoo
+	ocamlopt ast.cmx parser.cmx scanner.cmx semant.cmx translate.cmx kiddoo.cmx -o kiddoo
 
-translate.cmx: translate.ml ast.cmx parser.cmx scanner.cmx
+translate.cmx: translate.ml semant.cmx ast.cmx
 	ocamlopt -c translate.ml
+
+semant.cmx: semant.ml ast.cmx parser.cmx scanner.cmx
+	ocamlopt -c semant.ml
 
 scanner.cmx: scanner.mll parser.cmx
 	ocamllex scanner.mll

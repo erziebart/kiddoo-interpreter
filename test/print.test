@@ -1,8 +1,8 @@
 #lib
-def print
+def print(s)
 
 def my_func(x) = 2x^2 - 3x + 1
 
-con a = print(my_func(1), my_func(2), my_func(3))
+con a = print(my_func(1))
 
 -> my_func(2) * my_func(3)

@@ -1,0 +1,6 @@
+def func(i) = 
+  def funcA(k) = 3i - k
+  def funcB(i) = i * funcA(2)
+  -> funcB(3)
+
+-> func(2)
