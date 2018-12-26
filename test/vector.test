@@ -1,0 +1,10 @@
+use trig
+
+def x(mag, angle) = mag*cos(angle)
+
+def y(mag, angle) = mag*sin(angle)
+
+con mag = 5
+con angle = pi/2
+
+-> x(mag, angle), y(mag, angle)
