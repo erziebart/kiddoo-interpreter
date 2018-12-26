@@ -1,4 +1,10 @@
-%{ open Ast %}
+%{ 
+  open Ast
+
+  let simplify_tuple = function
+    | [expr] -> expr
+    | tuple -> Tuple(tuple)
+%}
 
 %token PLUS MINUS TIMES DIVIDE POWER
 %token EQ NEQ LT GT LEQ GEQ
@@ -12,6 +18,7 @@
 %token <float> FLTLIT
 %token EOF
 
+%left COMMA
 %left SEMI
 %left OR
 %left AND
@@ -39,7 +46,7 @@ top_decl:
   | LIB DEFINE func { Function($3, None) }
   | CONST ID ASSIGN def { Constant($2, $4) }
 /*  | ARROW actuals_list { Expression(List.rev $2) } */
-  | ARROW expr { Expression($2) }
+  | ARROW tuple { Expression(simplify_tuple $2) }
   | USE ID { Import($2) }
 
 decl_list:
@@ -58,8 +65,12 @@ func:
   | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); locals = List.rev($2) } }
 
 def:
-    decl_list ARROW expr { Composite(List.rev($1), $3) }
-  | expr { Single($1) }
+    decl_list ARROW tuple { Composite(List.rev($1), simplify_tuple $3) }
+  | tuple { Single(simplify_tuple $1) }
+
+tuple:
+    expr { [$1] }
+  | tuple COMMA expr { $3 :: $1 }
 
 expr:
     expr SEMI expr { Binop($1, Part, $3) } 
@@ -96,7 +107,7 @@ value:
     INTLIT { FloatLit(float_of_int $1) }
   | FLTLIT { FloatLit($1) }
   | call { $1 } 
-  | LPAREN expr RPAREN { $2 } 
+  | LPAREN tuple RPAREN { simplify_tuple $2 } 
 
 call:
     ID { Var($1) }

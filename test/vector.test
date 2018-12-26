@@ -8,3 +8,5 @@ con mag = 5
 con angle = pi/2
 
 -> x(mag, angle), y(mag, angle)
+
+{* expected output = "0, 5" *}

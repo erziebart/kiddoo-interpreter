@@ -6,6 +6,16 @@ module StringMap = Map.Make(String)
 (* flag a call to the runtime library *)
 exception Libcall
 
+(* language data type *)
+type data = typ * bool
+and typ = 
+  | Value of float
+  | Tuple of data list
+
+let rec string_of_data (v,u) = if u then "undef" else match v with
+  | Value(v) -> string_of_float v
+  | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_data ls) ^ ")"
+
 (* data management for value mappings *)
 let map_add k v map =  
   let ls = try StringMap.find k map with
@@ -197,13 +207,15 @@ let rec translate depth fconsts consts close =
         let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
         try eval locals flocals close.calls close.e with
           | Libcall -> lib_eval id values fvalues )
+
+    | Tuple(exprs) -> List.map (eval consts fconsts calls) exprs
      
-     | Null -> raise(Libcall)
+    | Null -> raise(Libcall)
   in
 
   (* translate body *)
   let (locals, flocals) = switch_scope depth [] [] [] [] close.consts consts fconsts in
   let result = eval locals flocals close.calls close.e in
   match close.name with
-    | "->" -> let to_print = if snd result then "undefined" else string_of_float (fst result) in print_endline to_print; consts
+    | "->" -> let to_print = string_of_data result in print_endline to_print; consts
     | id -> map_add id (result, depth) consts
