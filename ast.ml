@@ -1,12 +1,11 @@
 (* Abstract Syntax Tree *)
-type op = Add | Sub | Mult | Div | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or
+type op = Add | Sub | Mult | Div | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or | Part
 
 type uop = Neg | Not
 
 type expr = 
     FloatLit of float
   | Binop of expr * op * expr
-  | Part of expr * expr
   | Unop of uop * expr
   | Var of string
   | Call of string * string list * expr list 
@@ -48,6 +47,7 @@ let string_of_op = function
   | Geq -> ">="
   | And -> "&"
   | Or -> "|"
+  | Part -> ";"
 
 let string_of_uop = function
     Neg -> "-"
@@ -60,7 +60,6 @@ let string_of_fargs = function
 let rec string_of_expr = function
     FloatLit(l) -> string_of_float l
   | Binop(e1, o, e2) -> "(" ^ string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2 ^ ")"
-  | Part(e1,e2) -> "(" ^ string_of_expr e1 ^ " ; " ^ string_of_expr e2 ^ ")"
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ String.concat ", " (List.map string_of_expr a) ^ ")"
   | Var(s) -> s

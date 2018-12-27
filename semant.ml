@@ -48,7 +48,6 @@ let rec check_stmt depth (calltree,constants) =
   (* semantic check on an expression *)
   let rec check_expr calltree funptrs = function
     | Binop(e1,_,e2) -> check_expr calltree (check_expr calltree funptrs e1) e2
-    | Part(e1,e2) -> check_expr calltree (check_expr calltree funptrs e1) e2
     | Unop(_,e) -> check_expr calltree funptrs e
     | Var(id) -> if find_value (depth+1) id calltree then funptrs else raise(Failure("unknown variable "^id))
     | Call(id,fargs,args) -> (

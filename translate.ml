@@ -20,6 +20,13 @@ let equals v1 = function
   | Value(v2) -> v1 = v2
   | Tuple(_) -> false
 
+let not_equals v1 = function
+  | Value(v2) -> v1 <> v2
+  | Tuple(_) -> false
+
+let raise_incompatible l1 l2 = raise(Failure("incompatible tuple lengths: " 
+  ^ string_of_int(List.length l1) ^ "!=" ^ string_of_int(List.length l2)))
+
 (* data management for value mappings *)
 let map_add k v map =  
   let ls = try StringMap.find k map with
@@ -130,7 +137,8 @@ let rec translate depth fconsts consts close =
           | Value(v1), Value(v2) -> Value(op v1 v2)
           | Value(_), Tuple(l2) -> Tuple(List.map (binop op (t1,u1)) l2)
           | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> binop op v (t2,u2)) l1)
-          | Tuple(l1), Tuple(l2) -> Tuple(List.map2 (binop op) l1 l2) ), u1 || u2
+          | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 (binop op) l1 l2 ) with
+              | Invalid_argument(s) -> raise_incompatible l1 l2 ) ), u1 || u2
         in
 
         let (t1, u1) = eval consts fconsts calls e1 in
@@ -141,19 +149,27 @@ let rec translate depth fconsts consts close =
               let (t2, u2) = eval consts fconsts calls e2 in
               binop (fun v1 v2 -> v1 *. v2) (t1,u1) (t2,u2) )
           | Div -> (* eval denominator first *)
-              (if equals 0. t1 then Value(0.), true else
+              (let rec div (t1,u1) (t2,u2) = match (t1,t2) with
+                | Value(v1), Value(v2) -> (Value(v2 /. v1), 
+                    v1 = 0. || u1 || u2 )
+                | Value(_), Tuple(l2) -> Tuple(List.map (div (t1,u1)) l2), u1 || u2
+                | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> div v (t2,u2)) l1), u1 || u2
+                | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 div l1 l2), u1 || u2 with
+                    | Invalid_argument(s) -> raise_incompatible l1 l2 )
+              in
+              if equals 0. t1 then Value(0.), true else
               let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> v2 /. v1) (t1,u1) (t2,u2))
+              div (t1,u1) (t2,u2) )
           | And -> 
               (if equals 0. t1 then t1, u1 else
               let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v2 <> 0.)) (t1,u1) (t2,u2) )
+              binop (fun v1 v2 -> float_of_bool(v1<>0. && v2<>0.)) (t1,u1) (t2,u2) )
           | Or -> 
-              (if not (equals 0. t1) then Value(1.), u1 else
+              (if not_equals 0. t1 then Value(1.), u1 else
               let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v2 <> 0.)) (t1,u1) (t2,u2) )
-          (* | Part -> 
-              (if u1 then eval consts fconsts calls e2 else v1, u1 ) *)
+              binop (fun v1 v2 -> float_of_bool(v1<>0. || v2<>0.)) (t1,u1) (t2,u2) )
+          | Part -> 
+              (if u1 then eval consts fconsts calls e2 else t1, u1 )
           
           (* eval both sides for all cases *)
           | Add -> 
@@ -165,11 +181,11 @@ let rec translate depth fconsts consts close =
           | Exp -> (
               let rec exp (t1,u1) (t2,u2) = match (t1, t2) with
                 | Value(v1), Value(v2) -> (Value(v1 ** v2), 
-                    if ((v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.)) 
-                    then true else u1 || u2 )
+                    (v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.) || u1 || u2 )
                 | Value(_), Tuple(l2) -> Tuple(List.map (exp (t1,u1)) l2), u1 || u2
                 | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> exp v (t2,u2)) l1), u1 || u2
-                | Tuple(l1), Tuple(l2) -> Tuple(List.map2 exp l1 l2), u1 || u2
+                | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 exp l1 l2), u1 || u2 with
+                    | Invalid_argument(s) -> raise_incompatible l1 l2 )
               in
               let (t2, u2) = eval consts fconsts calls e2 in exp (t1,u1) (t2,u2) )
           | Equal -> 
@@ -191,9 +207,9 @@ let rec translate depth fconsts consts close =
               (let (t2, u2) = eval consts fconsts calls e2 in
               binop (fun v1 v2 -> float_of_bool(v1 >= v2)) (t1,u1) (t2,u2) ) )
 
-    | Part(e1, e2) -> (
+(*     | Part(e1, e2) -> (
         let (t1, u1) = eval consts fconsts calls e1 in
-        if u1 then eval consts fconsts calls e2 else t1, u1 )
+        if u1 then eval consts fconsts calls e2 else t1, u1 ) *)
 
     | Unop(uop, e) ->
         (let rec unop uop (t,u) = (match t with
@@ -230,7 +246,7 @@ let rec translate depth fconsts consts close =
     | Tuple(exprs) -> (
         let ls = List.map (eval consts fconsts calls) exprs in
         let undefs = List.map (snd) ls in
-        Tuple(ls), List.fold_left (||) false undefs )
+        Tuple(ls), List.fold_left (&&) true undefs )
      
     | Null -> raise(Libcall)
   in

@@ -2,4 +2,4 @@ con x = 3
 
 def func(x,y) = 2x + y
 
--> func(1,2)
+-> func(1,2) {* 4. *}

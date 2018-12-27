@@ -3,4 +3,4 @@ def func(i) =
   def funcB(i) = i * funcA(2)
   -> funcB(3)
 
--> func(2)
+-> func(2) {* 12. *}
