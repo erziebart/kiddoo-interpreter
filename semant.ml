@@ -68,6 +68,7 @@ let rec check_stmt depth (calltree,constants) =
         with
           | Found -> funptrs
           | Not_found -> raise(Failure("unknown function "^id)) )
+    | Tuple(exprs) -> List.fold_left (check_expr calltree) funptrs exprs
     | _ -> funptrs
   in
 
