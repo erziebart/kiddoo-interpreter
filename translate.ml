@@ -16,6 +16,10 @@ let rec string_of_data (v,u) = if u then "undef" else match v with
   | Value(v) -> string_of_float v
   | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_data ls) ^ ")"
 
+let equals v1 = function
+  | Value(v2) -> v1 = v2
+  | Tuple(_) -> false
+
 (* data management for value mappings *)
 let map_add k v map =  
   let ls = try StringMap.find k map with
@@ -69,122 +73,137 @@ let rec translate depth fconsts consts close =
       then Array.init n (fun i -> List.nth args i)
       else raise( Failure("wrong number of arguments for " ^ name))
     in
+    let standard func arr = let (t,u) = arr.(0) in match t with
+      | Value(v) -> Value(func v), u
+      | Tuple(l) -> raise( Failure("wrong type of argument for " ^ name))
+    in
     match name with
     | "floor" -> 
-        let arr = check_args 1 in 
-        floor (fst arr.(0)), snd arr.(0)          
+        let arr = check_args 1 in standard floor arr       
     | "ceil" -> 
-        let arr = check_args 1 in 
-        ceil (fst arr.(0)), snd arr.(0)          
+        let arr = check_args 1 in standard ceil arr        
     | "exp" -> 
-        let arr = check_args 1 in
-        exp (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard exp arr
     | "loge" -> 
-        let arr = check_args 1 in
-        log (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard log arr
     | "sin" -> 
-        let arr = check_args 1 in
-        sin (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard sin arr
     | "cos" -> 
-        let arr = check_args 1 in
-        cos (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard cos arr
     | "tan" -> 
-        let arr = check_args 1 in
-        tan (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard tan arr
     | "asin" -> 
-        let arr = check_args 1 in
-        asin (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard asin arr
     | "acos" -> 
-        let arr = check_args 1 in
-        acos (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard acos arr
     | "atan" -> 
-        let arr = check_args 1 in
-        atan (fst arr.(0)), snd arr.(0)
+        let arr = check_args 1 in standard atan arr
     | "isDef" -> 
         let arr = check_args 1 in
-        (if (snd arr.(0)) then 0. else 1.), false
+        (if (snd arr.(0)) then Value(0.) else Value(1.)), false
 
     | "print" -> (
         match args with
-            [] -> print_newline (); 0., false
+            [] -> print_newline (); Value(0.), false
           | _ -> 
-              let values = List.map (fst) args in
+              (* let values = List.map (fst) args in *)
               let undefs = List.map (snd) args in
-              let outputs = List.map (string_of_float) values in
+              let outputs = List.map (string_of_data) args in
               let is_undef = List.fold_left (||) false undefs in
-              print_endline ((String.concat ", " outputs) ^ ", " ^ (if is_undef then "1" else "0"));
-              0., is_undef )
+              print_endline (String.concat ", " outputs) (* ^ ", " ^ (if is_undef then "1" else "0")) *);
+              Value(0.), is_undef )
     | "scan" -> 
         ignore(check_args 0);
-        read_float (), false
+        Value(read_float ()), false
 
     | _ -> raise( Failure(name ^ ": definition not found"))
   in
 
   (* evaluates an expression to a value *)
   let rec eval consts fconsts calls = 
-    let float_of_bool b = if b then 1. else 0. in
+    let float_of_bool b = if b then 1. else 0. in  
     function
-      FloatLit(l) -> l, false
+      FloatLit(l) -> Value(l), false
   
     | Binop(e1, op, e2) -> (
-        let (v1, u1) = eval consts fconsts calls e1 in
+        let rec binop op (t1,u1) (t2,u2) = (match (t1, t2) with
+          | Value(v1), Value(v2) -> Value(op v1 v2)
+          | Value(_), Tuple(l2) -> Tuple(List.map (binop op (t1,u1)) l2)
+          | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> binop op v (t2,u2)) l1)
+          | Tuple(l1), Tuple(l2) -> Tuple(List.map2 (binop op) l1 l2) ), u1 || u2
+        in
+
+        let (t1, u1) = eval consts fconsts calls e1 in
         match op with
           (* short circuits *)
           | Mult -> 
-              (if v1 = 0. then v1, u1 else 
-              let (v2, u2) = eval consts fconsts calls e2 in
-              v1 *. v2, u1 || u2 )
+              (if equals 0. t1 then t1, u1 else 
+              let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> v1 *. v2) (t1,u1) (t2,u2) )
           | Div -> (* eval denominator first *)
-              (if v1 = 0. then 0., true else
-              let (v2, u2) = eval consts fconsts calls e2 in
-              v2 /. v1, u1 || u2)
+              (if equals 0. t1 then Value(0.), true else
+              let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> v2 /. v1) (t1,u1) (t2,u2))
           | And -> 
-              (if v1 = 0. then v1, u1 else
-              let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v2 <> 0.), u1 || u2 )
+              (if equals 0. t1 then t1, u1 else
+              let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v2 <> 0.)) (t1,u1) (t2,u2) )
           | Or -> 
-              (if v1 <> 0. then 1., u1 else
-              let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v2 <> 0.), u1 || u2 )
-          | Part -> 
-              (if u1 then eval consts fconsts calls e2 else v1, u1 )
+              (if not (equals 0. t1) then Value(1.), u1 else
+              let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v2 <> 0.)) (t1,u1) (t2,u2) )
+          (* | Part -> 
+              (if u1 then eval consts fconsts calls e2 else v1, u1 ) *)
           
           (* eval both sides for all cases *)
           | Add -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              v1 +. v2, u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> v1 +. v2) (t1,u1) (t2,u2) )
           | Sub -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              v1 -. v2, u1 || u2 )
-          | Exp -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              v1 ** v2, if ((v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.)) 
-                        then true else u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> v1 -. v2) (t1,u1) (t2,u2) )
+          | Exp -> (
+              let rec exp (t1,u1) (t2,u2) = match (t1, t2) with
+                | Value(v1), Value(v2) -> (Value(v1 ** v2), 
+                    if ((v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.)) 
+                    then true else u1 || u2 )
+                | Value(_), Tuple(l2) -> Tuple(List.map (exp (t1,u1)) l2), u1 || u2
+                | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> exp v (t2,u2)) l1), u1 || u2
+                | Tuple(l1), Tuple(l2) -> Tuple(List.map2 exp l1 l2), u1 || u2
+              in
+              let (t2, u2) = eval consts fconsts calls e2 in exp (t1,u1) (t2,u2) )
           | Equal -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v1 = v2), u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v1 = v2)) (t1,u1) (t2,u2) )
           | Neq -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v1 <> v2), u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v1 <> v2)) (t1,u1) (t2,u2) )
           | Less -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v1 < v2), u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v1 < v2)) (t1,u1) (t2,u2) )
           | Leq -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v1 <= v2), u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v1 <= v2)) (t1,u1) (t2,u2) )
           | Greater -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v1 > v2), u1 || u2 )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v1 > v2)) (t1,u1) (t2,u2) )
           | Geq -> 
-              (let (v2, u2) = eval consts fconsts calls e2 in
-              float_of_bool(v1 >= v2), u1 || u2 ) )
+              (let (t2, u2) = eval consts fconsts calls e2 in
+              binop (fun v1 v2 -> float_of_bool(v1 >= v2)) (t1,u1) (t2,u2) ) )
+
+    | Part(e1, e2) -> (
+        let (t1, u1) = eval consts fconsts calls e1 in
+        if u1 then eval consts fconsts calls e2 else t1, u1 )
 
     | Unop(uop, e) ->
-        (let (v,u) = eval consts fconsts calls e in
+        (let rec unop uop (t,u) = (match t with
+          | Value(v) -> Value(uop v)
+          | Tuple(l) -> Tuple(List.map (unop uop) l) ), u
+        in
+        let (t,u) = eval consts fconsts calls e in
         match uop with
-            Neg -> ~-. v, u
-          | Not -> float_of_bool(v = 0.), u )
+            Neg -> unop (fun v -> ~-. v) (t,u)
+          | Not -> unop (fun v -> float_of_bool(v = 0.)) (t,u) )
 
     | Var(id) -> 
         (try fst (map_find id consts) with
@@ -208,7 +227,10 @@ let rec translate depth fconsts consts close =
         try eval locals flocals close.calls close.e with
           | Libcall -> lib_eval id values fvalues )
 
-    | Tuple(exprs) -> List.map (eval consts fconsts calls) exprs
+    | Tuple(exprs) -> (
+        let ls = List.map (eval consts fconsts calls) exprs in
+        let undefs = List.map (snd) ls in
+        Tuple(ls), List.fold_left (||) false undefs )
      
     | Null -> raise(Libcall)
   in
