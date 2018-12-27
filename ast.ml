@@ -8,7 +8,7 @@ type expr =
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Var of string
-  | Call of string * string list * expr list 
+  | Call of string * string list * expr
   | Tuple of expr list
   | Null
 
@@ -61,7 +61,7 @@ let rec string_of_expr = function
     FloatLit(l) -> string_of_float l
   | Binop(e1, o, e2) -> "(" ^ string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2 ^ ")"
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
-  | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ String.concat ", " (List.map string_of_expr a) ^ ")"
+  | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_expr a ^ ")"
   | Var(s) -> s
   | Tuple(exprs) -> String.concat ", " (List.map string_of_expr exprs)
   | Null -> ""

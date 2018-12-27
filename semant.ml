@@ -56,12 +56,12 @@ let rec check_stmt depth (calltree,constants) =
           let (far,ar,_) = fdecl in
           let farlen = List.length far and arlen = List.length ar in
           if compare farlen (List.length fargs) = 0 then
-            if compare arlen (List.length args) = 0 then 
-              let funptrs = List.fold_left (check_expr calltree) funptrs args in
+            (* if compare arlen (List.length args) = 0 then  *)
+              let funptrs = check_expr calltree funptrs args in
               let funptrs = List.fold_left (find_and_add calltree) funptrs fargs in
               StringMap.add id (fdecl,d) funptrs
-            else
-              raise(Failure("wrong number of arguments passed to "^id^", expected "^string_of_int farlen))
+            (* else
+              raise(Failure("wrong number of arguments passed to "^id^", expected "^string_of_int farlen)) *)
           else
             raise(Failure("wrong number of function arguments passed to "^id^", expected "^string_of_int arlen)) )
         with

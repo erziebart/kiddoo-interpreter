@@ -4,7 +4,7 @@ open Semant
 module StringMap = Map.Make(String)
 
 (* flag a call to the runtime library *)
-exception Libcall
+exception NullExpr
 
 (* language data type *)
 type data = typ * bool
@@ -26,6 +26,10 @@ let not_equals v1 = function
 
 let raise_incompatible l1 l2 = raise(Failure("incompatible tuple lengths: " 
   ^ string_of_int(List.length l1) ^ "!=" ^ string_of_int(List.length l2)))
+
+let to_list d = match d with
+  | Value(_),_ -> [d]
+  | Tuple(ls),_ -> ls
 
 (* data management for value mappings *)
 let map_add k v map =  
@@ -65,7 +69,8 @@ let rec translate depth fconsts consts close =
     and fouter = map_filter_depth depth fconsts
     in
     let add_arg map id value = map_add id (value,depth+1) map in
-    let wargs = try List.fold_left2 add_arg outer params args with 
+    let wargs = try List.fold_left2 add_arg outer params [args] with 
+      | Invalid_argument(s) -> try List.fold_left2 add_arg outer params (to_list args) with 
       | Invalid_argument(s) -> raise(Failure("wrong number of arguments"))
     and fwargs = try List.fold_left2 add_arg fouter fparams fargs with
       | Invalid_argument(s) -> raise(Failure("wrong number of function arguments"))
@@ -75,7 +80,8 @@ let rec translate depth fconsts consts close =
 
   (* evaluates calls to runtime library functions *)
   let lib_eval name args fargs = 
-    let check_args n =
+    let check_args n =  
+      let args = to_list args in
       if List.length args = n 
       then Array.init n (fun i -> List.nth args i)
       else raise( Failure("wrong number of arguments for " ^ name))
@@ -111,14 +117,14 @@ let rec translate depth fconsts consts close =
 
     | "print" -> (
         match args with
-            [] -> print_newline (); Value(0.), false
-          | _ -> 
-              (* let values = List.map (fst) args in *)
+          | Tuple([]),_ -> print_newline (); Value(0.), false
+          | _,_ -> print_endline (string_of_data args); Value(0.), false )
+              (* (* let values = List.map (fst) args in *)
               let undefs = List.map (snd) args in
               let outputs = List.map (string_of_data) args in
               let is_undef = List.fold_left (||) false undefs in
               print_endline (String.concat ", " outputs) (* ^ ", " ^ (if is_undef then "1" else "0")) *);
-              Value(0.), is_undef )
+              Value(0.), is_undef ) *)
     | "scan" -> 
         ignore(check_args 0);
         Value(read_float ()), false
@@ -231,8 +237,9 @@ let rec translate depth fconsts consts close =
         in
         let ((fparams,params,close),d) = try find_func id with
           | Not_found -> raise(Failure("function " ^ id ^ " missing"))
-        in
-        let values = List.map (eval consts fconsts calls) args
+        in 
+        let values = try eval consts fconsts calls args with
+          | NullExpr -> Tuple([]), false
         and fvalues = List.map 
           (fun name -> try find_func name with 
             | Not_found -> raise(Failure("function argument " ^ name ^ " missing")) 
@@ -241,18 +248,18 @@ let rec translate depth fconsts consts close =
         let fnames = List.map (fun (s,_,_) -> s) fparams in
         let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
         try eval locals flocals close.calls close.e with
-          | Libcall -> lib_eval id values fvalues )
+          | NullExpr -> lib_eval id values fvalues )
 
     | Tuple(exprs) -> (
         let ls = List.map (eval consts fconsts calls) exprs in
         let undefs = List.map (snd) ls in
         Tuple(ls), List.fold_left (&&) true undefs )
      
-    | Null -> raise(Libcall)
+    | Null -> raise(NullExpr)
   in
 
   (* translate body *)
-  let (locals, flocals) = switch_scope depth [] [] [] [] close.consts consts fconsts in
+  let (locals, flocals) = switch_scope depth [] [] (Tuple([]),false) [] close.consts consts fconsts in
   let result = eval locals flocals close.calls close.e in
   match close.name with
     | "->" -> let to_print = string_of_data result in print_endline to_print; consts

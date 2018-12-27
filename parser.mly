@@ -45,7 +45,6 @@ top_decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | LIB DEFINE func { Function($3, None) }
   | CONST ID ASSIGN def { Constant($2, $4) }
-/*  | ARROW actuals_list { Expression(List.rev $2) } */
   | ARROW tuple { Expression(simplify_tuple $2) }
   | USE ID { Import($2) }
 
@@ -111,9 +110,9 @@ value:
 
 call:
     ID { Var($1) }
-  | FID actuals_opt RPAREN { Call($1, [], List.rev($2)) } 
-  | FFID id_list RBRACE LPAREN actuals_opt RPAREN { Call($1, List.rev($2), List.rev($5)) } 
-  | FID actuals_opt RPAREN LBRACE id_list RBRACE { Call($1, List.rev($5), List.rev($2)) }
+  | FID actuals_opt RPAREN { Call($1, [], $2) } 
+  | FFID id_list RBRACE LPAREN actuals_opt RPAREN { Call($1, List.rev($2), $5) } 
+  | FID actuals_opt RPAREN LBRACE id_list RBRACE { Call($1, List.rev($5), $2) }
  
 formals_opt: 
     /* nothing */ { [] }
@@ -128,9 +127,10 @@ formal_funcs:
   | formal_funcs COMMA ID LT INTLIT INTLIT GT { ($3, $5, $6) :: $1 }
 
 actuals_opt:
-    /* nothing */ { [] } 
-  | actuals_list { $1 }
+    /* nothing */ { Null } 
+  /*| actuals_list { $1 }*/
+  | tuple { simplify_tuple $1 }
 
-actuals_list:
+/*actuals_list:
     expr { [$1] }
-  | actuals_list COMMA expr { $3 :: $1 }
+  | actuals_list COMMA expr { $3 :: $1 }*/
