@@ -61,7 +61,7 @@ let string_of_metadata (data,d) = let close = match data with
 *)
 
 (* evaluates a call tree closure *)
-let rec translate depth fconsts consts close =
+let rec translate depth fconsts consts (names,close) =
   
   (* switches to the given scope by updating constants lists *)
   let switch_scope depth params fparams args fargs inner consts fconsts = 
@@ -261,6 +261,12 @@ let rec translate depth fconsts consts close =
   (* translate body *)
   let (locals, flocals) = switch_scope depth [] [] (Tuple([]),false) [] close.consts consts fconsts in
   let result = eval locals flocals close.calls close.e in
-  match close.name with
-    | "->" -> let to_print = string_of_data result in print_endline to_print; consts
-    | id -> map_add id (result, depth) consts
+  match names with
+    | ["->"] -> let to_print = string_of_data result in print_endline to_print; consts
+    | [id] -> map_add id (result, depth) consts
+    | ids -> match result with
+        | Tuple(l),_ -> (try List.fold_left2 (fun map id t -> map_add id (t, depth) map) consts ids l with
+           | Invalid_argument(_) -> raise(Failure("incompatible tuple assignments: " 
+              ^ string_of_int(List.length ids) ^ "!=" ^ string_of_int(List.length l))) )
+        | Value(_),_ -> raise(Failure("incompatible tuple assignment: "
+            ^ string_of_int(List.length ids) ^ "!=1"))

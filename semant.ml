@@ -4,9 +4,8 @@ module StringMap = Map.Make(String)
 
 (* call tree types *)
 type closure = {
-  name: string;
   e: expr;
-  mutable consts: closure list;
+  mutable consts: (string list * closure) list;
   mutable calls: (fundata * int)StringMap.t
 }
 
@@ -14,8 +13,8 @@ and fundata = sigture list * string list * closure
 
 type ctree = 
   | Root
-  | Fundecl of fundata * int * ctree
-  | Condecl of closure * int * ctree
+  | Fundecl of string * fundata * int * ctree
+  | Condecl of string list * closure * int * ctree
 
 (* when a function is found but pointer cannot be returned *)
 exception Found
@@ -25,17 +24,17 @@ let rec check_stmt depth (calltree,constants) =
 
   (* helper functions to search for function or constant ids *)
   let rec find_value depth name = function
-    | Fundecl((_,args,_),d,p) -> 
+    | Fundecl(_,(_,args,_),d,p) -> 
         if d<depth && List.mem name args then true else find_value d name p
-    | Condecl(close,d,p) -> 
-        if close.name=name then true else find_value d name p
+    | Condecl(names,_,d,p) -> 
+        if List.exists ((=) name) names then true else find_value d name p
     | Root -> false
   in
   let rec find_func depth id = function
-    | Fundecl((fargs,_,close) as fundecl,d,p) -> 
+    | Fundecl(name,fundecl,d,p) -> let (fargs,_,_) = fundecl in
         if (d<depth && List.exists (fun (n,_,_) -> n=id) fargs) then raise(Found) else
-          if (close.name=id) then (fundecl,d) else find_func d id p
-    | Condecl(_,d,p) -> find_func d id p
+          if (name=id) then (fundecl,d) else find_func d id p
+    | Condecl(_,_,d,p) -> find_func d id p
     | Root -> raise(Not_found)
   in
 
@@ -77,7 +76,7 @@ let rec check_stmt depth (calltree,constants) =
     | Composite(decls, expr) -> decls, expr
     | None -> [], Null
   in
-  let init_closure name expr = {name = name; e = expr; consts = []; calls = StringMap.empty} in
+  let init_closure expr = {e = expr; consts = []; calls = StringMap.empty} in
   let parse_inner decls head close = 
     let (call_branch, constants) = List.fold_left (check_stmt (depth+1)) (head, []) decls
     in
@@ -89,18 +88,19 @@ let rec check_stmt depth (calltree,constants) =
   function
   | Function(func,def) -> 
       let (decls,expr) = parse_def def in
-      let close = init_closure func.fname expr in
-      let head = Fundecl((func.fparams, func.locals, close),depth,calltree) in
+      let close = init_closure expr in
+      let head = Fundecl(func.fname,(func.fparams, func.locals, close),depth,calltree) in
       parse_inner decls head close; head, constants
-  | Constant(name,def) ->
+  | Constant(names,def) ->
       let (decls,expr) = parse_def def in
-      let close = init_closure name expr in
-      let head = Condecl(close,depth,calltree) in
-      parse_inner decls head close; head, close :: constants
+      let close = init_closure expr in
+      let head = Condecl(names,close,depth,calltree) in
+      parse_inner decls head close; head, (names,close) :: constants
   | Expression(expr) ->
-      let close = init_closure "->" expr in
-      let head = Condecl(close,depth,calltree) in
-      parse_inner [] head close; head, close :: constants
+      let names = ["->"] in
+      let close = init_closure expr in
+      let head = Condecl(names,close,depth,calltree) in
+      parse_inner [] head close; head, (names,close) :: constants
   | Import(file) ->
       let import = file ^ ".klib" in
       try (

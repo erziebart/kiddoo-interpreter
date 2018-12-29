@@ -44,7 +44,7 @@ top_decl_list:
 top_decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | LIB DEFINE func { Function($3, None) }
-  | CONST ID ASSIGN def { Constant($2, $4) }
+  | CONST id_list ASSIGN def { Constant(List.rev $2, $4) }
   | ARROW tuple { Expression(simplify_tuple $2) }
   | USE ID { Import($2) }
 
@@ -54,7 +54,7 @@ decl_list:
 
 decl:
     DEFINE func ASSIGN def { Function($2, $4) }
-  | CONST ID ASSIGN def { Constant($2, $4) }
+  | CONST id_list ASSIGN def { Constant(List.rev $2, $4) }
   | LIB DEFINE func { Function($3, None) }
 
 func:
