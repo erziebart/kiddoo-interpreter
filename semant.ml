@@ -4,7 +4,7 @@ module StringMap = Map.Make(String)
 
 (* call tree types *)
 type closure = {
-  e: expr;
+  e: expr list;
   mutable consts: (string list * closure) list;
   mutable calls: (fundata * int)StringMap.t
 }
@@ -72,33 +72,33 @@ let rec check_stmt depth (calltree,constants) =
 
   (* helper functions for construction call tree nodes *)
   let parse_def = function
-      Single(expr) -> [], expr
-    | Composite(decls, expr) -> decls, expr
-    | None -> [], Null
+      Single(exprs) -> [], exprs
+    | Composite(decls, exprs) -> decls, exprs
+    | None -> [], []
   in
-  let init_closure expr = {e = expr; consts = []; calls = StringMap.empty} in
+  let init_closure exprs = {e = exprs; consts = []; calls = StringMap.empty} in
   let parse_inner decls head close = 
     let (call_branch, constants) = List.fold_left (check_stmt (depth+1)) (head, []) decls
     in
-    let funptrs = check_expr call_branch StringMap.empty close.e in
+    let funptrs = List.fold_left (check_expr call_branch) StringMap.empty close.e in
     close.consts <- List.rev constants; close.calls <- funptrs
   in
 
   (* check_stmt body *)
   function
   | Function(func,def) -> 
-      let (decls,expr) = parse_def def in
-      let close = init_closure expr in
+      let (decls,exprs) = parse_def def in
+      let close = init_closure exprs in
       let head = Fundecl(func.fname,(func.fparams, func.locals, close),depth,calltree) in
       parse_inner decls head close; head, constants
   | Constant(names,def) ->
-      let (decls,expr) = parse_def def in
-      let close = init_closure expr in
+      let (decls,exprs) = parse_def def in
+      let close = init_closure exprs in
       let head = Condecl(names,close,depth,calltree) in
       parse_inner decls head close; head, (names,close) :: constants
   | Expression(expr) ->
       let names = ["->"] in
-      let close = init_closure expr in
+      let close = init_closure [expr] in
       let head = Condecl(names,close,depth,calltree) in
       parse_inner [] head close; head, (names,close) :: constants
   | Import(file) ->

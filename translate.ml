@@ -247,8 +247,11 @@ let rec translate depth fconsts consts (names,close) =
         in
         let fnames = List.map (fun (s,_,_) -> s) fparams in
         let (locals, flocals) = switch_scope d params fnames values fvalues close.consts consts fconsts in
-        try eval locals flocals close.calls close.e with
-          | NullExpr -> lib_eval id values fvalues )
+        match close.e with
+          | [] -> lib_eval id values fvalues
+          | exprs -> let e = Ast.Tuple(exprs) in eval locals flocals close.calls e )
+        (* try eval locals flocals close.calls close.e with
+          | NullExpr -> lib_eval id values fvalues ) *)
 
     | Tuple(exprs) -> (
         let ls = List.map (eval consts fconsts calls) exprs in
@@ -260,13 +263,23 @@ let rec translate depth fconsts consts (names,close) =
 
   (* translate body *)
   let (locals, flocals) = switch_scope depth [] [] (Tuple([]),false) [] close.consts consts fconsts in
-  let result = eval locals flocals close.calls close.e in
   match names with
-    | ["->"] -> let to_print = string_of_data result in print_endline to_print; consts
-    | [id] -> map_add id (result, depth) consts
+    | [id] -> (let result = eval locals flocals close.calls (Tuple(close.e)) in match id with
+        | "->" -> let to_print = string_of_data result in print_endline to_print; consts
+        | n -> map_add id (result, depth) consts )
+    | ids -> (
+        let results = List.map (eval locals flocals close.calls) close.e in
+        try List.fold_left2 (fun map id t -> map_add id (t, depth) map) consts ids results with
+          | Invalid_argument(_) -> raise(Failure("incompatible tuple assignment: " 
+              ^ string_of_int(List.length ids) ^ "!=" ^ string_of_int(List.length results))) )
+
+ (*  let result = List.map (eval locals flocals close.calls) close.e in
+  match names with
+    | ["->"] -> let to_print = String.concat ", " (List.map string_of_data result) in print_endline to_print; consts
+    | [id] -> map_add id ((Tuple(result),false), depth) consts
     | ids -> match result with
         | Tuple(l),_ -> (try List.fold_left2 (fun map id t -> map_add id (t, depth) map) consts ids l with
            | Invalid_argument(_) -> raise(Failure("incompatible tuple assignments: " 
               ^ string_of_int(List.length ids) ^ "!=" ^ string_of_int(List.length l))) )
         | Value(_),_ -> raise(Failure("incompatible tuple assignment: "
-            ^ string_of_int(List.length ids) ^ "!=1"))
+            ^ string_of_int(List.length ids) ^ "!=1")) *)

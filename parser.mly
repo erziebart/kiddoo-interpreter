@@ -64,8 +64,8 @@ func:
   | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); locals = List.rev($2) } }
 
 def:
-    decl_list ARROW tuple { Composite(List.rev($1), simplify_tuple $3) }
-  | tuple { Single(simplify_tuple $1) }
+    decl_list ARROW tuple { Composite(List.rev($1), List.rev $3) }
+  | tuple { Single(List.rev $1) }
 
 tuple:
     expr { [$1] }
@@ -128,9 +128,4 @@ formal_funcs:
 
 actuals_opt:
     /* nothing */ { Null } 
-  /*| actuals_list { $1 }*/
   | tuple { simplify_tuple $1 }
-
-/*actuals_list:
-    expr { [$1] }
-  | actuals_list COMMA expr { $3 :: $1 }*/

@@ -26,8 +26,8 @@ type decl =
   | Expression of expr 
   | Import of string
 and def = 
-    Composite of decl list * expr 
-  | Single of expr
+    Composite of decl list * expr list
+  | Single of expr list
   | None
 
 type program = decl list
@@ -63,8 +63,9 @@ let rec string_of_expr = function
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_expr a ^ ")"
   | Var(s) -> s
-  | Tuple(exprs) -> String.concat ", " (List.map string_of_expr exprs)
+  | Tuple(exprs) -> string_of_tuple exprs
   | Null -> ""
+and string_of_tuple exprs = String.concat ", " (List.map string_of_expr exprs)
 
 let string_of_sigture (id, l1, l2) = id ^ "<" ^ string_of_int l1 ^ " " ^ string_of_int l2 ^ ">"
 
@@ -81,8 +82,8 @@ let rec string_of_decl = function
   | Expression(expr) -> string_of_expr expr
   | Import(s) -> "use" ^ s
 and string_of_def = function
-    Single(e) -> string_of_expr e ^ "\n"
-  | Composite(decls, e) -> "{\n" ^ String.concat "\n" (List.map string_of_decl decls) ^ "}\n" ^ string_of_expr e ^ "\n"
+    Single(exprs) -> string_of_tuple exprs ^ "\n"
+  | Composite(decls, exprs) -> "{\n" ^ String.concat "\n" (List.map string_of_decl decls) ^ "}\n" ^ string_of_tuple exprs ^ "\n"
   | None -> "\n"
 
 let string_of_program (decls) = String.concat "" (List.map (fun decl -> string_of_decl decl ^ "\n") decls) 
