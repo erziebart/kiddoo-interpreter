@@ -45,7 +45,7 @@ top_decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | LIB DEFINE func { Function($3, None) }
   | CONST id_list ASSIGN def { Constant(List.rev $2, $4) }
-  | ARROW tuple { Expression(simplify_tuple $2) }
+  | ARROW tuple { Expression(List.rev $2) }
   | USE ID { Import($2) }
 
 decl_list:
@@ -127,5 +127,5 @@ formal_funcs:
   | formal_funcs COMMA ID LT INTLIT INTLIT GT { ($3, $5, $6) :: $1 }
 
 actuals_opt:
-    /* nothing */ { Null } 
-  | tuple { simplify_tuple $1 }
+    /* nothing */ { [] } 
+  | tuple { List.rev($1) }

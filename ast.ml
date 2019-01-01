@@ -8,7 +8,7 @@ type expr =
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Var of string
-  | Call of string * string list * expr
+  | Call of string * string list * expr list
   | Tuple of expr list
   | Null
 
@@ -23,7 +23,7 @@ type func = {
 type decl = 
     Function of func * def
   | Constant of string list * def
-  | Expression of expr 
+  | Expression of expr list 
   | Import of string
 and def = 
     Composite of decl list * expr list
@@ -61,7 +61,7 @@ let rec string_of_expr = function
     FloatLit(l) -> string_of_float l
   | Binop(e1, o, e2) -> "(" ^ string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2 ^ ")"
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
-  | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_expr a ^ ")"
+  | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_tuple a ^ ")"
   | Var(s) -> s
   | Tuple(exprs) -> string_of_tuple exprs
   | Null -> ""
@@ -79,7 +79,7 @@ let rec string_of_decl = function
     Function(func, def) -> "def " ^ string_of_func func ^ " = " ^ string_of_def def
   | Constant(ids,def) -> "con " ^ String.concat ", " ids ^ " = " ^ string_of_def def
 (*  | Expression(exprs) -> "-> " ^ String.concat ", " (List.map string_of_expr exprs) *)
-  | Expression(expr) -> string_of_expr expr
+  | Expression(exprs) -> string_of_tuple exprs
   | Import(s) -> "use" ^ s
 and string_of_def = function
     Single(exprs) -> string_of_tuple exprs ^ "\n"
