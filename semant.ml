@@ -8,7 +8,7 @@ module StringMap = Map.Make(String)
   mutable calls: fundata StringMap.t
 } *)
 
-type fundata = {
+(* type fundata = {
   name: string;
   fparams: sigture list;
   params: string list;
@@ -22,7 +22,7 @@ and condata = {
   exprs: expr list;
   mutable consts: condata list;
   mutable calls: fundata StringMap.t;
-}
+} *)
 
 type ctree = 
   | Root
@@ -38,14 +38,14 @@ let rec check_stmt depth (calltree,constants) =
   (* helper functions to search for function or constant ids *)
   let rec find_value depth name = function
     | Fundecl(data,p) -> 
-        if data.depth<depth && List.mem name data.params then true else find_value data.depth name p
+        if data.depth<depth && List.mem name data.locals then true else find_value data.depth name p
     | Condecl(data,d,p) -> 
         if List.exists ((=) name) data.names then true else find_value d name p
     | Root -> false
   in
   let rec find_func depth id = function
     | Fundecl(data,p) ->
-        if (data.depth<depth && List.exists (fun (n,_,_) -> n=id) data.fparams) then raise(Found) else
+        if (data.depth<depth && List.exists (fun (n,_,_) -> n=id) data.flocals) then raise(Found) else
           if (data.name=id) then data else find_func data.depth id p
     | Condecl(data,d,p) -> find_func d id p
     | Root -> raise(Not_found)
@@ -65,7 +65,7 @@ let rec check_stmt depth (calltree,constants) =
     | Call(id,fargs,args) -> (
         try (
           let fdata = find_func (depth+1) id calltree in
-          let farlen = List.length fdata.fparams and arlen = List.length fdata.params in
+          let farlen = List.length fdata.flocals and arlen = List.length fdata.locals in
           if compare farlen (List.length fargs) = 0 then
             if compare arlen (List.length args) = 0 || arlen = 1 then
               let funptrs = List.fold_left (check_expr calltree) funptrs args in
@@ -91,8 +91,8 @@ let rec check_stmt depth (calltree,constants) =
 (*   let init_closure = {consts = []; calls = StringMap.empty} in *)
   let init_func func expr = {
     name=func.fname; 
-    fparams=func.fparams; 
-    params=func.locals; 
+    flocals=func.fparams; 
+    locals=func.params; 
     e=expr; 
     fconsts=[]; 
     fcalls=StringMap.empty; 

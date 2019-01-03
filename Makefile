@@ -3,10 +3,13 @@ default: kiddoo
 
 kiddoo: kiddoo.ml semant.cmx translate.cmx
 	ocamlopt -c kiddoo.ml
-	ocamlopt ast.cmx parser.cmx scanner.cmx semant.cmx translate.cmx kiddoo.cmx -o kiddoo
+	ocamlopt ast.cmx parser.cmx scanner.cmx semant.cmx datatypes.cmx translate.cmx kiddoo.cmx -o kiddoo
 
-translate.cmx: translate.ml semant.cmx ast.cmx
+translate.cmx: translate.ml datatypes.cmx semant.cmx ast.cmx
 	ocamlopt -c translate.ml
+
+datatypes.cmx: semant.cmx ast.cmx
+	ocamlopt -c datatypes.ml
 
 semant.cmx: semant.ml ast.cmx parser.cmx scanner.cmx
 	ocamlopt -c semant.ml

@@ -1,23 +1,44 @@
+module StringMap = Map.Make(String)
+
 (* Abstract Syntax Tree *)
 type op = Add | Sub | Mult | Div | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or | Part
 
 type uop = Neg | Not
 
+type sigture = string * int * int
+
 type expr = 
-    FloatLit of float
+    FloatLit of float * bool
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Var of string
   | Call of string * string list * expr list
+  | Scope of expr * condata StringMap.t * fundata StringMap.t * fundata StringMap.t 
   | Tuple of expr list
   | Null
 
-type sigture = string * int * int
+and fundata = {
+  name: string;
+  flocals: sigture list;
+  locals: string list;
+  e: expr;
+  mutable fconsts: condata list;
+  mutable fcalls: fundata StringMap.t;
+  depth: int;
+}
+
+and condata = {
+  names: string list;
+  exprs: expr list;
+  mutable consts: condata list;
+  mutable calls: fundata StringMap.t;
+}
+
 
 type func = {
   fname: string;
   fparams: sigture list;
-  locals: string list;
+  params: string list;
 }
 
 type decl = 
@@ -58,10 +79,11 @@ let string_of_fargs = function
   | _ as f -> "[" ^ String.concat ", " f ^ "]"
 
 let rec string_of_expr = function
-    FloatLit(l) -> string_of_float l
+    FloatLit(l,u) -> string_of_float l
   | Binop(e1, o, e2) -> "(" ^ string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2 ^ ")"
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_tuple a ^ ")"
+  | Scope(e,_,_,_) -> string_of_expr e
   | Var(s) -> s
   | Tuple(exprs) -> string_of_tuple exprs
   | Null -> ""
@@ -73,7 +95,7 @@ let string_of_fparams = function
     [] -> ""
   | _ as l -> "[" ^ String.concat ", " (List.map string_of_sigture l) ^ "]"
 
-let string_of_func func = func.fname ^ string_of_fparams func.fparams ^ "(" ^ String.concat ", " func.locals ^ ")"
+let string_of_func func = func.fname ^ string_of_fparams func.fparams ^ "(" ^ String.concat ", " func.params ^ ")"
 
 let rec string_of_decl = function
     Function(func, def) -> "def " ^ string_of_func func ^ " = " ^ string_of_def def

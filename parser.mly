@@ -58,10 +58,10 @@ decl:
   | LIB DEFINE func { Function($3, None) }
 
 func:
-    ID { { fname = $1; fparams = []; locals = [] } }
-  | FID formals_opt RPAREN { { fname = $1; fparams = []; locals = List.rev($2) } }
-  | FFID formal_funcs RBRACE LPAREN formals_opt RPAREN { { fname = $1; fparams = List.rev($2); locals = List.rev($5) } }
-  | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); locals = List.rev($2) } }
+    ID { { fname = $1; fparams = []; params = [] } }
+  | FID formals_opt RPAREN { { fname = $1; fparams = []; params = List.rev($2) } }
+  | FFID formal_funcs RBRACE LPAREN formals_opt RPAREN { { fname = $1; fparams = List.rev($2); params = List.rev($5) } }
+  | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); params = List.rev($2) } }
 
 def:
     decl_list ARROW tuple { Composite(List.rev($1), List.rev $3) }
@@ -103,8 +103,8 @@ noneg_factor:
   | value { $1 }
 
 value:
-    INTLIT { FloatLit(float_of_int $1) }
-  | FLTLIT { FloatLit($1) }
+    INTLIT { FloatLit(float_of_int $1,false) }
+  | FLTLIT { FloatLit($1,false) }
   | call { $1 } 
   | LPAREN tuple RPAREN { simplify_tuple $2 } 
 
