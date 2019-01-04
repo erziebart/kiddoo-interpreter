@@ -1,18 +1,18 @@
 (* language data type *)
-type data = typ * bool
-and typ = 
+type obj = data * bool
+and data = 
   | Value of float
-  | Tuple of data list
+  | Tuple of obj list
 
-let rec string_of_data (v,u) = if u then "undef" else match v with
+let rec string_of_obj (t,u) = if u then "undef" else match t with
   | Value(v) -> string_of_float v
-  | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_data ls) ^ ")"
+  | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_obj ls) ^ ")"
 
 let zero = Value(0.)
-let types = List.map (fun ((t,u):data) -> t)
-let undefs = List.map (fun ((t,u):data) -> u)
+let types = List.map (fun ((t,u):obj) -> t)
+let undefs = List.map (fun ((t,u):obj) -> u)
 
-let data_of_bool b = if b then Value(1.) else zero 
+let obj_of_bool b = if b then Value(1.) else zero 
 
 let rec compare t1 t2 = match t1,t2 with
   | Value(v1), Value(v2) -> v1 -. v2
@@ -47,12 +47,12 @@ let rec arithmetic ~opv ?(opu=(fun v1 v2 -> false)) (t1,u1) (t2,u2)=
   | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 (arithmetic ~opv ~opu) l1 l2 ), u with
       | Invalid_argument(_) -> raise_incompatible l1 l2 )
 
-(* let list_of_data d = match d with
+(* let list_of_obj d = match d with
   | Value(_),_ -> [d]
   | Tuple(ls),_ -> ls *)
 
-let data_of_list dl = match dl with
-  | [data] -> data
+let obj_of_list ol = match ol with
+  | [obj] -> obj
   | _ -> (
-      let is_undef = List.fold_left (&&) true (undefs dl) in
-      Tuple(dl),is_undef)
+      let is_undef = List.fold_left (&&) true (undefs ol) in
+      Tuple(ol),is_undef)

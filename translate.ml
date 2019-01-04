@@ -31,7 +31,7 @@ let rec translate depth fconsts consts data =
     in
     let add_arg map id value = map_add id (value,depth+1) map in
     let wargs = if List.length params = 1 
-      then add_arg outer (List.hd params) (data_of_list args)
+      then add_arg outer (List.hd params) (obj_of_list args)
       else try List.fold_left2 add_arg outer params args with 
         | Invalid_argument(s) -> raise(Failure("wrong number of arguments"))
     and fwargs = try List.fold_left2 add_arg fouter fparams fargs with
@@ -74,12 +74,12 @@ let rec translate depth fconsts consts data =
         let arr = check_args 1 in standard atan arr
     | "isDef" -> 
         let arr = check_args 1 in
-        data_of_bool (not (snd arr.(0))), false
+        obj_of_bool (not (snd arr.(0))), false
 
     | "print" -> (
         match args with
           | [] -> print_newline (); zero, false
-          | _ -> print_endline (string_of_data (data_of_list args)); zero, false )
+          | _ -> print_endline (string_of_obj (obj_of_list args)); zero, false )
     | "scan" -> 
         ignore(check_args 0);
         Value(read_float ()), false
@@ -113,23 +113,23 @@ let rec translate depth fconsts consts data =
 
           (* comparison *)
           | Equal -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (equal t1 t2), u1 || u2 )
+              obj_of_bool (equal t1 t2), u1 || u2 )
           | Neq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (not_equal t1 t2), u1 || u2 )
+              obj_of_bool (not_equal t1 t2), u1 || u2 )
           | Less -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (compare t1 t2 < 0.), u1 || u2 )
+              obj_of_bool (compare t1 t2 < 0.), u1 || u2 )
           | Leq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (compare t1 t2 <= 0.), u1 || u2 )
+              obj_of_bool (compare t1 t2 <= 0.), u1 || u2 )
           | Greater -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (compare t1 t2 > 0.), u1 || u2 )
+              obj_of_bool (compare t1 t2 > 0.), u1 || u2 )
           | Geq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (compare t1 t2 >= 0.), u1 || u2 )
+              obj_of_bool (compare t1 t2 >= 0.), u1 || u2 )
 
           (* logical *)
           | And -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (not_equal zero t1 && not_equal zero t2), u1 || u2)
+              obj_of_bool (not_equal zero t1 && not_equal zero t2), u1 || u2)
           | Or -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              data_of_bool (not_equal zero t1 || not_equal zero t2), u1 || u2) )
+              obj_of_bool (not_equal zero t1 || not_equal zero t2), u1 || u2) )
 
     | Unop(uop, e) -> (
         let t,u = eval consts fconsts calls e in
@@ -139,7 +139,7 @@ let rec translate depth fconsts consts data =
                 | Value(v),u -> Value(~-. v), u
                 | Tuple(l),u -> Tuple(List.map neg l), u
               in neg (t,u) )
-          | Not -> data_of_bool (equal zero t), u )
+          | Not -> obj_of_bool (equal zero t), u )
 
     | Var(id) -> 
         (try fst (map_find id consts) with
@@ -167,7 +167,7 @@ let rec translate depth fconsts consts data =
     | Tuple(exprs) -> (
         if List.length exprs = 1 then eval consts fconsts calls (List.hd exprs) else
         let ls = List.map (eval consts fconsts calls) exprs in
-        data_of_list ls )
+        obj_of_list ls )
   in
 
   (* translate body *)
@@ -175,9 +175,9 @@ let rec translate depth fconsts consts data =
   let results = List.map (eval locals flocals data.calls) data.exprs in
   match data.names with
     | [id] -> (
-        let result = data_of_list results in
+        let result = obj_of_list results in
         match id with
-          | "->" -> let to_print = string_of_data result in print_endline to_print; consts
+          | "->" -> let to_print = string_of_obj result in print_endline to_print; consts
           | _ -> map_add id (result, depth) consts )
     | _ -> (
         let results = match results with
