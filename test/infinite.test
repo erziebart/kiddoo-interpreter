@@ -1,0 +1,13 @@
+def infinite() = infinite()
+
+def infinite2() = 
+    def a() = infinite2()
+    -> a()
+
+def infinite3() = 
+    def a() = 
+        def b() = infinite3()
+        -> b()
+    -> a()
+
+-> infinite()

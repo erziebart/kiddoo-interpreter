@@ -1,0 +1,16 @@
+def Point(x,y) = x,y
+
+def Point_move(p, dx, dy) = 
+  con x,y = p
+  -> x+dx, y+dy
+
+def Rect(x,y,w,h) = Point(x,y), w, h
+
+def Rect_move(rect, dx, dy) = 
+  con p,w,h = rect
+  -> Point_move(p, dx, dy),w,h
+
+con rect = Rect(0,0,3,5)
+-> Rect_move(rect, 2, 3)
+
+{* ((2., 3.), 3., 5.) *}

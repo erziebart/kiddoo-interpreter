@@ -1,4 +1,10 @@
-%{ open Ast %}
+%{ 
+  open Ast
+
+  let simplify_tuple = function
+    | [expr] -> expr
+    | tuple -> Tuple(List.rev tuple)
+%}
 
 %token PLUS MINUS TIMES DIVIDE POWER
 %token EQ NEQ LT GT LEQ GEQ
@@ -12,6 +18,7 @@
 %token <float> FLTLIT
 %token EOF
 
+%left COMMA
 %left SEMI
 %left OR
 %left AND
@@ -37,9 +44,8 @@ top_decl_list:
 top_decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | LIB DEFINE func { Function($3, None) }
-  | CONST ID ASSIGN def { Constant($2, $4) }
-/*  | ARROW actuals_list { Expression(List.rev $2) } */
-  | ARROW expr { Expression($2) }
+  | CONST id_list ASSIGN def { Constant(List.rev $2, $4) }
+  | ARROW tuple { Expression(List.rev $2) }
   | USE ID { Import($2) }
 
 decl_list:
@@ -48,7 +54,7 @@ decl_list:
 
 decl:
     DEFINE func ASSIGN def { Function($2, $4) }
-  | CONST ID ASSIGN def { Constant($2, $4) }
+  | CONST id_list ASSIGN def { Constant(List.rev $2, $4) }
   | LIB DEFINE func { Function($3, None) }
 
 func:
@@ -58,8 +64,12 @@ func:
   | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); locals = List.rev($2) } }
 
 def:
-    decl_list ARROW expr { Composite(List.rev($1), $3) }
-  | expr { Single($1) }
+    decl_list ARROW tuple { Composite(List.rev($1), List.rev $3) }
+  | tuple { Single(List.rev $1) }
+
+tuple:
+    expr { [$1] }
+  | tuple COMMA expr { $3 :: $1 }
 
 expr:
     expr SEMI expr { Binop($1, Part, $3) } 
@@ -96,13 +106,13 @@ value:
     INTLIT { FloatLit(float_of_int $1) }
   | FLTLIT { FloatLit($1) }
   | call { $1 } 
-  | LPAREN expr RPAREN { $2 } 
+  | LPAREN tuple RPAREN { simplify_tuple $2 } 
 
 call:
     ID { Var($1) }
-  | FID actuals_opt RPAREN { Call($1, [], List.rev($2)) } 
-  | FFID id_list RBRACE LPAREN actuals_opt RPAREN { Call($1, List.rev($2), List.rev($5)) } 
-  | FID actuals_opt RPAREN LBRACE id_list RBRACE { Call($1, List.rev($5), List.rev($2)) }
+  | FID actuals_opt RPAREN { Call($1, [], $2) } 
+  | FFID id_list RBRACE LPAREN actuals_opt RPAREN { Call($1, List.rev($2), $5) } 
+  | FID actuals_opt RPAREN LBRACE id_list RBRACE { Call($1, List.rev($5), $2) }
  
 formals_opt: 
     /* nothing */ { [] }
@@ -118,8 +128,4 @@ formal_funcs:
 
 actuals_opt:
     /* nothing */ { [] } 
-  | actuals_list { $1 }
-
-actuals_list:
-    expr { [$1] }
-  | actuals_list COMMA expr { $3 :: $1 }
+  | tuple { List.rev($1) }
