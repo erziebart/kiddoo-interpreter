@@ -2,12 +2,6 @@ open Ast
 
 module StringMap = Map.Make(String)
 
-(* call tree types *)
-(* type closure = {
-  mutable consts: condata list;
-  mutable calls: fundata StringMap.t
-} *)
-
 type fundata = {
   name: string;
   fparams: sigture list;
@@ -112,13 +106,6 @@ let rec check_stmt depth (calltree,constants) =
       ^ (string_of_int nl) ^ "!=" ^ (string_of_int el)))
   in
 
-(*   let parse_inner_func decls head data = 
-    let (call_branch, constants) = List.fold_left (check_stmt (depth+1)) (head, []) decls
-    in
-    let funptrs = check_expr call_branch StringMap.empty close.e in
-    close.consts <- List.rev constants; close.calls <- funptrs
-  in *)
-
   (* check_stmt body *)
   function
   | Function(func,def) -> (
@@ -154,29 +141,3 @@ let rec check_stmt depth (calltree,constants) =
         List.fold_left (check_stmt depth) (calltree,constants) ast )
       with
       | Sys_error(_) -> print_endline ("cannot use file " ^ file); calltree, constants )
-
-(* for testing purposes *)
-(*let _ = 
-
-  let string_of_closure close = close.name ^ " calls: " ^ String.concat " " (List.map (fst) (StringMap.bindings close.calls)) in
-
-  let string_of_ctree_decl = function
-    | Decl(Fundecl(_,_,close),_,_) -> string_of_closure close
-    | Decl(Condecl(close),_,_) -> string_of_closure close
-    | Root -> raise(Failure("Whoops!"))
-  in
-
-  try
-    let infile = Sys.argv.(1) in
-    let ic = open_in infile in
-    let lexbuf = Lexing.from_channel ic in
-    let ast = Parser.program Scanner.token lexbuf in
-    let check_and_print (calltree,constants) decl = 
-      let (ctree_leaf, consts) = check_stmt 0 (calltree,constants) decl in
-      print_endline (string_of_ctree_decl ctree_leaf); ctree_leaf,consts
-    in
-    ignore (List.fold_left check_and_print (Root,[]) ast)
-  with 
-    | Failure(s) -> print_endline s; exit 0 
-    | Sys_error(s) -> print_endline s; exit 0
-*)

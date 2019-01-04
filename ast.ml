@@ -10,7 +10,6 @@ type expr =
   | Var of string
   | Call of string * string list * expr list
   | Tuple of expr list
-  | Null
 
 type sigture = string * int * int
 
@@ -64,7 +63,6 @@ let rec string_of_expr = function
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_tuple a ^ ")"
   | Var(s) -> s
   | Tuple(exprs) -> string_of_tuple exprs
-  | Null -> ""
 and string_of_tuple exprs = String.concat ", " (List.map string_of_expr exprs)
 
 let string_of_sigture (id, l1, l2) = id ^ "<" ^ string_of_int l1 ^ " " ^ string_of_int l2 ^ ">"
@@ -78,7 +76,6 @@ let string_of_func func = func.fname ^ string_of_fparams func.fparams ^ "(" ^ St
 let rec string_of_decl = function
     Function(func, def) -> "def " ^ string_of_func func ^ " = " ^ string_of_def def
   | Constant(ids,def) -> "con " ^ String.concat ", " ids ^ " = " ^ string_of_def def
-(*  | Expression(exprs) -> "-> " ^ String.concat ", " (List.map string_of_expr exprs) *)
   | Expression(exprs) -> string_of_tuple exprs
   | Import(s) -> "use" ^ s
 and string_of_def = function
