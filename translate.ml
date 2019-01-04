@@ -16,16 +16,44 @@ let rec string_of_data (v,u) = if u then "undef" else match v with
   | Value(v) -> string_of_float v
   | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_data ls) ^ ")"
 
-let equals v1 = function
-  | Value(v2) -> v1 = v2
-  | Tuple(_) -> false
+let zero = Value(0.)
+let types = List.map (fun ((t,u):data) -> t)
+let undefs = List.map (fun ((t,u):data) -> u)
 
-let not_equals v1 = function
-  | Value(v2) -> v1 <> v2
-  | Tuple(_) -> false
+let data_of_bool b = if b then Value(1.) else zero 
+
+let rec compare t1 t2 = match t1,t2 with
+  | Value(v1), Value(v2) -> v1 -. v2
+  | Value(_), Tuple(_) -> -1.
+  | Tuple(_), Value(_) -> 1.
+  | Tuple(l1), Tuple(l2) -> (
+      let c = Pervasives.compare (List.length l1) (List.length l2) in if c <> 0 then float c else
+        let types1 = types l1 and types2 = types l2 in
+        try List.find (fun c -> c <> 0.) (List.map2 compare types1 types2) with
+          | Not_found -> 0. )
+
+let rec equal t1 t2 = match t1,t2 with
+  | Value(v1), Value(v2) -> v1 = v2
+  | Tuple(l1), Tuple(l2) -> (try List.for_all2 equal (types l1) (types l2) with
+      | Invalid_argument(_) -> false)
+  | _ -> false
+
+let rec not_equal t1 t2 = match t1,t2 with
+  | Value(v1), Value(v2) -> v1 <> v2
+  | Tuple(l1), Tuple(l2) -> (try List.exists2 not_equal (types l1) (types l2) with
+      | Invalid_argument(_) -> true)
+  | _ -> true
 
 let raise_incompatible l1 l2 = raise(Failure("incompatible tuple lengths: " 
   ^ string_of_int(List.length l1) ^ "!=" ^ string_of_int(List.length l2)))
+
+let rec arithmetic ~opv ?(opu=(fun v1 v2 -> false)) (t1,u1) (t2,u2)=
+  let u = u1 || u2 in match t1,t2 with
+  | Value(v1), Value(v2) -> Value(opv v1 v2), u || opu v1 v2
+  | Value(_), Tuple(l2) -> Tuple(List.map (fun e2 -> arithmetic ~opv ~opu (t1,u1) e2 ) l2), u
+  | Tuple(l1), Value(_) -> Tuple(List.map (fun e1 -> arithmetic ~opv ~opu e1 (t2,u2)) l1), u
+  | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 (arithmetic ~opv ~opu) l1 l2 ), u with
+      | Invalid_argument(_) -> raise_incompatible l1 l2 )
 
 let to_list d = match d with
   | Value(_),_ -> [d]
@@ -108,12 +136,12 @@ let rec translate depth fconsts consts data =
         let arr = check_args 1 in standard atan arr
     | "isDef" -> 
         let arr = check_args 1 in
-        (if (snd arr.(0)) then Value(0.) else Value(1.)), false
+        data_of_bool (not (snd arr.(0))), false
 
     | "print" -> (
         match args with
-          | [] -> print_newline (); Value(0.), false
-          | _ -> print_endline (string_of_data (data_of_list args)); Value(0.), false )
+          | [] -> print_newline (); zero, false
+          | _ -> print_endline (string_of_data (data_of_list args)); zero, false )
     | "scan" -> 
         ignore(check_args 0);
         Value(read_float ()), false
@@ -122,99 +150,58 @@ let rec translate depth fconsts consts data =
   in
 
   (* evaluates an expression to a value *)
-  let rec eval consts fconsts calls = 
-    let float_of_bool b = if b then 1. else 0. in  
-    function
-      FloatLit(l) -> Value(l), false
+  let rec eval consts fconsts calls = function
+    | FloatLit(l) -> Value(l), false
   
     | Binop(e1, op, e2) -> (
-        let rec binop op (t1,u1) (t2,u2) = (match (t1, t2) with
-          | Value(v1), Value(v2) -> Value(op v1 v2)
-          | Value(_), Tuple(l2) -> Tuple(List.map (binop op (t1,u1)) l2)
-          | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> binop op v (t2,u2)) l1)
-          | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 (binop op) l1 l2 ) with
-              | Invalid_argument(s) -> raise_incompatible l1 l2 ) ), u1 || u2
-        in
-
-        let (t1, u1) = eval consts fconsts calls e1 in
+        let (t1, u1) = eval consts fconsts calls e1 in 
         match op with
           (* short circuits *)
-          | Mult -> 
-              (if equals 0. t1 then t1, u1 else 
-              let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> v1 *. v2) (t1,u1) (t2,u2) )
-          | Div -> (* eval denominator first *)
-              (let rec div (t1,u1) (t2,u2) = match (t1,t2) with
-                | Value(v1), Value(v2) -> (Value(v2 /. v1), 
-                    v1 = 0. || u1 || u2 )
-                | Value(_), Tuple(l2) -> Tuple(List.map (div (t1,u1)) l2), u1 || u2
-                | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> div v (t2,u2)) l1), u1 || u2
-                | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 div l1 l2), u1 || u2 with
-                    | Invalid_argument(s) -> raise_incompatible l1 l2 )
-              in
-              if equals 0. t1 then Value(0.), true else
-              let (t2, u2) = eval consts fconsts calls e2 in
-              div (t1,u1) (t2,u2) )
-          | And -> 
-              (if equals 0. t1 then t1, u1 else
-              let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1<>0. && v2<>0.)) (t1,u1) (t2,u2) )
-          | Or -> 
-              (if not_equals 0. t1 then Value(1.), u1 else
-              let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1<>0. || v2<>0.)) (t1,u1) (t2,u2) )
-          | Part -> 
-              (if u1 then eval consts fconsts calls e2 else t1, u1 )
-          
-          (* eval both sides for all cases *)
-          | Add -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> v1 +. v2) (t1,u1) (t2,u2) )
-          | Sub -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> v1 -. v2) (t1,u1) (t2,u2) )
-          | Exp -> (
-              let rec exp (t1,u1) (t2,u2) = match (t1, t2) with
-                | Value(v1), Value(v2) -> (Value(v1 ** v2), 
-                    (v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.) || u1 || u2 )
-                | Value(_), Tuple(l2) -> Tuple(List.map (exp (t1,u1)) l2), u1 || u2
-                | Tuple(l1), Value(_) -> Tuple(List.map (fun v -> exp v (t2,u2)) l1), u1 || u2
-                | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 exp l1 l2), u1 || u2 with
-                    | Invalid_argument(s) -> raise_incompatible l1 l2 )
-              in
-              let (t2, u2) = eval consts fconsts calls e2 in exp (t1,u1) (t2,u2) )
-          | Equal -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1 = v2)) (t1,u1) (t2,u2) )
-          | Neq -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1 <> v2)) (t1,u1) (t2,u2) )
-          | Less -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1 < v2)) (t1,u1) (t2,u2) )
-          | Leq -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1 <= v2)) (t1,u1) (t2,u2) )
-          | Greater -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1 > v2)) (t1,u1) (t2,u2) )
-          | Geq -> 
-              (let (t2, u2) = eval consts fconsts calls e2 in
-              binop (fun v1 v2 -> float_of_bool(v1 >= v2)) (t1,u1) (t2,u2) ) )
+          | Part -> (if u1 then eval consts fconsts calls e2 else t1, u1 )
+          | Div -> (if equal zero t1 then zero, true else 
+              let (t2,u2) = eval consts fconsts calls e2 in
+              arithmetic ~opv:(fun v1 v2 -> v2 /. v1) ~opu:(fun v1 v2 -> v1 = 0.) (t1,u1) (t2,u2))
 
-(*     | Part(e1, e2) -> (
-        let (t1, u1) = eval consts fconsts calls e1 in
-        if u1 then eval consts fconsts calls e2 else t1, u1 ) *)
+          (* arithmetic *)
+          | Add -> (let (t2,u2) = eval consts fconsts calls e2 in
+              arithmetic ~opv:(+.) (t1,u1) (t2,u2))
+          | Sub -> (let (t2,u2) = eval consts fconsts calls e2 in
+              arithmetic ~opv:(-.) (t1,u1) (t2,u2))
+          | Mult -> (let (t2,u2) = eval consts fconsts calls e2 in
+              arithmetic ~opv:( *.) (t1,u1) (t2,u2))
+          | Exp -> (let (t2,u2) = eval consts fconsts calls e2 in
+              arithmetic ~opv:( **) (t1,u1) (t2,u2)
+              ~opu:(fun v1 v2 -> (v1<0. && fst(modf v2)<>0.) || (v1=0. && v2=0.)) )
 
-    | Unop(uop, e) ->
-        (let rec unop uop (t,u) = (match t with
-          | Value(v) -> Value(uop v)
-          | Tuple(l) -> Tuple(List.map (unop uop) l) ), u
-        in
-        let (t,u) = eval consts fconsts calls e in
+          (* comparison *)
+          | Equal -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (equal t1 t2), u1 || u2 )
+          | Neq -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (not_equal t1 t2), u1 || u2 )
+          | Less -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (compare t1 t2 < 0.), u1 || u2 )
+          | Leq -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (compare t1 t2 <= 0.), u1 || u2 )
+          | Greater -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (compare t1 t2 > 0.), u1 || u2 )
+          | Geq -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (compare t1 t2 >= 0.), u1 || u2 )
+
+          (* logical *)
+          | And -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (not_equal zero t1 && not_equal zero t2), u1 || u2)
+          | Or -> (let (t2,u2) = eval consts fconsts calls e2 in 
+              data_of_bool (not_equal zero t1 || not_equal zero t2), u1 || u2) )
+
+    | Unop(uop, e) -> (
+        let t,u = eval consts fconsts calls e in
         match uop with
-            Neg -> unop (fun v -> ~-. v) (t,u)
-          | Not -> unop (fun v -> float_of_bool(v = 0.)) (t,u) )
+          | Neg -> (
+              let rec neg = function
+                | Value(v),u -> Value(~-. v), u
+                | Tuple(l),u -> Tuple(List.map neg l), u
+              in neg (t,u) )
+          | Not -> data_of_bool (equal zero t), u )
 
     | Var(id) -> 
         (try fst (map_find id consts) with

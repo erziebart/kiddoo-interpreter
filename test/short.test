@@ -1,6 +1,4 @@
-def segfault() = segfault()
+use io
 
--> 0segfault()
--> segfault()/(1==0);0
--> 0&segfault()
--> 1|segfault()
+-> print(1000)/(1==0);0
+-> 0; print(2000)
