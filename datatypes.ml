@@ -1,21 +1,46 @@
 (* language data type *)
+type typ = 
+  | I of int
+  | F of float
+
 type obj = data * bool
 and data = 
-  | Value of float
+  | Value of typ
   | Tuple of obj list
 
+let string_of_typ = function
+  | I(i) -> string_of_int i
+  | F(f) -> string_of_float f
+
 let rec string_of_obj (t,u) = if u then "undef" else match t with
-  | Value(v) -> string_of_float v
+  | Value(v) -> string_of_typ v
   | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_obj ls) ^ ")"
 
-let zero = Value(0.)
+let zero = Value(I(0))
 let types = List.map (fun ((t,u):obj) -> t)
 let undefs = List.map (fun ((t,u):obj) -> u)
+let obj_of_bool b = if b then Value(I(1)) else zero
 
-let obj_of_bool b = if b then Value(1.) else zero 
+let binop_on_typ ~iop ~fop v1 v2 = match v1,v2 with
+  | I(i1), I(i2) -> iop i1 i2
+  | I(i1), F(f2) -> fop (float i1) f2
+  | F(f1), I(i2) -> fop f1 (float i2)
+  | F(f1), F(f2) -> fop f1 f2
 
-let rec compare t1 t2 = match t1,t2 with
-  | Value(v1), Value(v2) -> v1 -. v2
+let unop_on_typ ~iop ~fop = function
+  | I(i) -> iop i
+  | F(f) -> fop f
+
+let rec compare t1 t2 = 
+  let diff v1 v2 =
+    let float = 
+    function
+      | I(i) -> float i
+      | F(f) -> f
+    in (-.) (float v1) (float v2)
+  in 
+  match t1,t2 with
+  | Value(v1), Value(v2) -> diff v1 v2
   | Value(_), Tuple(_) -> -1.
   | Tuple(_), Value(_) -> 1.
   | Tuple(l1), Tuple(l2) -> (
@@ -35,6 +60,8 @@ let rec not_equal t1 t2 = match t1,t2 with
   | Tuple(l1), Tuple(l2) -> (try List.exists2 not_equal (types l1) (types l2) with
       | Invalid_argument(_) -> true)
   | _ -> true
+
+
 
 let raise_incompatible l1 l2 = raise(Failure("incompatible tuple lengths: " 
   ^ string_of_int(List.length l1) ^ "!=" ^ string_of_int(List.length l2)))
