@@ -100,6 +100,8 @@ let rec translate depth fconsts consts data =
   (* evaluates an expression to a value *)
   let rec eval consts fconsts calls = function
     | FloatLit(l) -> Value(F(l)), false
+
+    | IntLit(i) -> Value(I(i)), false
   
     | Binop(e1, op, e2) -> (
         let (t1, u1) = eval consts fconsts calls e1 in 
@@ -110,6 +112,7 @@ let rec translate depth fconsts consts data =
               let (t2,u2) = eval consts fconsts calls e2 in
               let iop = fun i1 i2 -> F( (/.) (float i1) (float i2) )
               and fop = fun f1 f2 -> F( (/.) f1 f2) in
+              if equal (Value(I(1))) t1 then t2, u1 || u2 else
               arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
               ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
 
@@ -132,7 +135,7 @@ let rec translate depth fconsts consts data =
                 | 0 -> x
                 | i -> g (p*p) (if i mod 2 = 1 then p*x else x) (i/2)
                 in
-                I(g i1 1 i2)
+                if i2 < 0 then F((float i1) ** (float i2)) else I(g i1 1 i2)
               and fopv = fun f1 f2 -> F(f1**f2) 
               and iopu = fun i1 i2 -> false
               and fopu = fun f1 f2 -> (f1<0. && fst(modf f2)<>0.) || (f1=0. && f2=0.) in 

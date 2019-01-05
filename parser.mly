@@ -103,7 +103,7 @@ noneg_factor:
   | value { $1 }
 
 value:
-    INTLIT { FloatLit(float_of_int $1) }
+    INTLIT { IntLit($1) }
   | FLTLIT { FloatLit($1) }
   | call { $1 } 
   | LPAREN tuple RPAREN { simplify_tuple $2 } 
