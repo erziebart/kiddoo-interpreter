@@ -10,6 +10,8 @@ rule token = parse
   | '-'                  { MINUS }
   | '*'                  { TIMES }
   | '/'                  { DIVIDE }
+  | "//"                 { INTDIV }
+  | '%'                  { MODULUS }
   | '^'                  { POWER }
   | "def"                { DEFINE }
   | "con"                { CONST }

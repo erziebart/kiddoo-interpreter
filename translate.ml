@@ -115,6 +115,19 @@ let rec translate depth fconsts consts data =
               if equal (Value(I(1))) t1 then t2, u1 || u2 else
               arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
               ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
+          | Idiv -> (if equal zero t1 then zero, true else
+              let (t2,u2) = eval consts fconsts calls e2 in
+              let iop = fun i1 i2 -> I( i1 / i2 )
+              and fop = fun f1 f2 -> I( truncate(f1 /. f2)) in
+              if equal (Value(I(1))) t1 then t2, u1 || u2 else
+              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
+              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
+          | Mod -> (if equal zero t1 then zero, true else
+              let (t2,u2) = eval consts fconsts calls e2 in
+              let iop = fun i1 i2 -> I( i1 mod i2 )
+              and fop = fun f1 f2 -> F( mod_float f1 f2) in
+              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
+              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
 
           (* arithmetic *)
           | Add -> (let (t2,u2) = eval consts fconsts calls e2 in

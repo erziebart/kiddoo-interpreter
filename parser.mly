@@ -6,7 +6,7 @@
     | tuple -> Tuple(List.rev tuple)
 %}
 
-%token PLUS MINUS TIMES DIVIDE POWER
+%token PLUS MINUS TIMES DIVIDE INTDIV MODULUS POWER
 %token EQ NEQ LT GT LEQ GEQ
 %token AND OR NOT
 %token SEMI
@@ -25,7 +25,7 @@
 %left EQ NEQ
 %left LT GT LEQ GEQ
 %left PLUS MINUS
-%left TIMES DIVIDE
+%left TIMES DIVIDE INTDIV MODULUS
 %right NOT NEG
 %right POWER
 
@@ -89,6 +89,8 @@ term:
     term TIMES factor { Binop($1, Mult, $3) } 
   | term noneg_factor %prec TIMES { Binop($1, Mult, $2) } 
   | term DIVIDE factor { Binop($3, Div, $1) }
+  | term INTDIV factor { Binop($3, Idiv, $1)}
+  | term MODULUS factor { Binop($3, Mod, $1) }
   | factor { $1 }
 
 factor:

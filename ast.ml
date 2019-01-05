@@ -1,5 +1,5 @@
 (* Abstract Syntax Tree *)
-type op = Add | Sub | Mult | Div | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or | Part
+type op = Add | Sub | Mult | Div | Idiv | Mod | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or | Part
 
 type uop = Neg | Not
 
@@ -38,6 +38,8 @@ let string_of_op = function
   | Sub -> "-"
   | Mult -> "*"
   | Div -> "/"
+  | Idiv -> "//"
+  | Mod -> "%"
   | Exp -> "^"
   | Equal -> "=="
   | Neq -> "!="
