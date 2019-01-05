@@ -1,0 +1,20 @@
+use std
+
+{* greatest common divisor *}
+def gcd(a,b) = abs(b)/(a==0) ; gcd(b%a, a)
+
+{* power x^y mod m *}
+def power(x,y,m) = 
+    def p() = (power(x, y//2, m) % m)^2 % m
+    -> 1/(y==0) ; p()/(y%2==0) ; (x*p()) % m
+
+{* mod m inverse (if exists) *}
+def inv(a, m) = power(a, m-2, m) / (gcd(a, m)==1)
+
+-> gcd(35,15) {* 5 *}
+-> gcd(-80,130) {* 10 *}
+-> power(2,5,11) {* 10 *}
+-> power(3,5,11) {* 1 *}
+-> inv(2,11) {* 6 *}
+-> inv(3,11) {* 4 *}
+-> inv(5,25) {* undef *}

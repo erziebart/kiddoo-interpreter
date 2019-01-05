@@ -1,10 +1,11 @@
 (* Abstract Syntax Tree *)
-type op = Add | Sub | Mult | Div | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or | Part
+type op = Add | Sub | Mult | Div | Idiv | Mod | Exp | Equal | Neq | Less | Leq | Greater | Geq | And | Or | Part
 
 type uop = Neg | Not
 
 type expr = 
     FloatLit of float
+  | IntLit of int
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Var of string
@@ -37,6 +38,8 @@ let string_of_op = function
   | Sub -> "-"
   | Mult -> "*"
   | Div -> "/"
+  | Idiv -> "//"
+  | Mod -> "%"
   | Exp -> "^"
   | Equal -> "=="
   | Neq -> "!="
@@ -58,6 +61,7 @@ let string_of_fargs = function
 
 let rec string_of_expr = function
     FloatLit(l) -> string_of_float l
+  | IntLit(i) -> string_of_int i
   | Binop(e1, o, e2) -> "(" ^ string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2 ^ ")"
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_tuple a ^ ")"

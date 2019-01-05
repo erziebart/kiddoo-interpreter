@@ -1,21 +1,44 @@
 (* language data type *)
-type data = typ * bool
-and typ = 
-  | Value of float
-  | Tuple of data list
+type typ = 
+  | I of int
+  | F of float
 
-let rec string_of_data (v,u) = if u then "undef" else match v with
-  | Value(v) -> string_of_float v
-  | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_data ls) ^ ")"
+type obj = data * bool
+and data = 
+  | Value of typ
+  | Tuple of obj list
 
-let zero = Value(0.)
-let types = List.map (fun ((t,u):data) -> t)
-let undefs = List.map (fun ((t,u):data) -> u)
+let string_of_typ = function
+  | I(i) -> string_of_int i
+  | F(f) -> string_of_float f
 
-let data_of_bool b = if b then Value(1.) else zero 
+let rec string_of_obj (t,u) = if u then "undef" else match t with
+  | Value(v) -> string_of_typ v
+  | Tuple(ls) -> "(" ^ String.concat ", " (List.map string_of_obj ls) ^ ")"
 
-let rec compare t1 t2 = match t1,t2 with
-  | Value(v1), Value(v2) -> v1 -. v2
+let zero = Value(I(0))
+let types = List.map (fun ((t,u):obj) -> t)
+let undefs = List.map (fun ((t,u):obj) -> u)
+let obj_of_bool b = if b then Value(I(1)) else zero
+
+let ensure_float = function
+  | I(i) -> float i
+  | F(f) -> f
+
+let binop_on_typ ~iop ~fop v1 v2 = match v1,v2 with
+  | I(i1), I(i2) -> iop i1 i2
+  | I(i1), F(f2) -> fop (float i1) f2
+  | F(f1), I(i2) -> fop f1 (float i2)
+  | F(f1), F(f2) -> fop f1 f2
+
+let unop_on_typ ~iop ~fop = function
+  | I(i) -> iop i
+  | F(f) -> fop f
+
+let rec compare t1 t2 = 
+  let diff v1 v2 = (-.) (ensure_float v1) (ensure_float v2) in 
+  match t1,t2 with
+  | Value(v1), Value(v2) -> diff v1 v2
   | Value(_), Tuple(_) -> -1.
   | Tuple(_), Value(_) -> 1.
   | Tuple(l1), Tuple(l2) -> (
@@ -47,12 +70,12 @@ let rec arithmetic ~opv ?(opu=(fun v1 v2 -> false)) (t1,u1) (t2,u2)=
   | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 (arithmetic ~opv ~opu) l1 l2 ), u with
       | Invalid_argument(_) -> raise_incompatible l1 l2 )
 
-(* let list_of_data d = match d with
+(* let list_of_obj d = match d with
   | Value(_),_ -> [d]
   | Tuple(ls),_ -> ls *)
 
-let data_of_list dl = match dl with
-  | [data] -> data
+let obj_of_list ol = match ol with
+  | [obj] -> obj
   | _ -> (
-      let is_undef = List.fold_left (&&) true (undefs dl) in
-      Tuple(dl),is_undef)
+      let is_undef = List.fold_left (&&) true (undefs ol) in
+      Tuple(ol),is_undef)
