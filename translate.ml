@@ -47,41 +47,41 @@ let rec translate depth fconsts consts data =
       then Array.init n (fun i -> List.nth args i)
       else raise( Failure("wrong number of arguments for " ^ name))
     in
-    let standard ~ifunc ~ffunc arr = let (t,u) = arr.(0) in match t with
-      | Value(v) -> Value(unop_on_typ ~iop:ifunc ~fop:ffunc v), u
+    let standard ~func arr = let (t,u) = arr.(0) in match t with
+      | Value(v) -> Value(func (ensure_float v)), u
       | Tuple(l) -> raise( Failure("wrong type of argument for " ^ name))
     in
     match name with
     | "floor" ->
         let arr = check_args 1 in 
-        standard ~ifunc:(fun i -> I(truncate(floor(float i)))) ~ffunc:(fun f -> I(truncate(floor f))) arr       
+        standard ~func:(fun f -> I(truncate(floor f))) arr       
     | "ceil" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> I(truncate(ceil(float i)))) ~ffunc:(fun f -> I(truncate(ceil f))) arr     
+        standard ~func:(fun f -> I(truncate(ceil f))) arr     
     | "exp" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(exp(float i))) ~ffunc:(fun f -> F(exp f)) arr
+        standard ~func:(fun f -> F(exp f)) arr
     | "loge" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(log(float i))) ~ffunc:(fun f -> F(log f)) arr 
+        standard ~func:(fun f -> F(log f)) arr
     | "sin" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(sin(float i))) ~ffunc:(fun f -> F(sin f)) arr 
+        standard ~func:(fun f -> F(sin f)) arr
     | "cos" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(cos(float i))) ~ffunc:(fun f -> F(cos f)) arr 
+        standard ~func:(fun f -> F(cos f)) arr
     | "tan" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(tan(float i))) ~ffunc:(fun f -> F(tan f)) arr 
+        standard ~func:(fun f -> F(tan f)) arr
     | "asin" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(asin(float i))) ~ffunc:(fun f -> F(asin f)) arr 
+        standard ~func:(fun f -> F(asin f)) arr
     | "acos" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(acos(float i))) ~ffunc:(fun f -> F(acos f)) arr 
+        standard ~func:(fun f -> F(acos f)) arr
     | "atan" -> 
         let arr = check_args 1 in
-        standard ~ifunc:(fun i -> F(atan(float i))) ~ffunc:(fun f -> F(atan f)) arr 
+        standard ~func:(fun f -> F(atan f)) arr
     | "isDef" -> 
         let arr = check_args 1 in
         obj_of_bool (not (snd arr.(0))), false
@@ -115,19 +115,6 @@ let rec translate depth fconsts consts data =
               if equal (Value(I(1))) t1 then t2, u1 || u2 else
               arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
               ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
-          | Idiv -> (if equal zero t1 then zero, true else
-              let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I( i1 / i2 )
-              and fop = fun f1 f2 -> I( truncate(f1 /. f2)) in
-              if equal (Value(I(1))) t1 then t2, u1 || u2 else
-              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
-          | Mod -> (if equal zero t1 then zero, true else
-              let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I( i1 mod i2 )
-              and fop = fun f1 f2 -> F( mod_float f1 f2) in
-              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
 
           (* arithmetic *)
           | Add -> (let (t2,u2) = eval consts fconsts calls e2 in
@@ -142,6 +129,16 @@ let rec translate depth fconsts consts data =
               let iop = fun i1 i2 -> I(i1*i2)
               and fop = fun f1 f2 -> F(f1*.f2) in
               arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2))
+          | Idiv -> (let (t2,u2) = eval consts fconsts calls e2 in
+              let iop = fun i1 i2 -> I( i1 / i2 )
+              and fop = fun f1 f2 -> I( truncate(f1 /. f2)) in
+              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
+              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
+          | Mod -> (let (t2,u2) = eval consts fconsts calls e2 in
+              let iop = fun i1 i2 -> I( i1 mod i2 )
+              and fop = fun f1 f2 -> F( mod_float f1 f2) in
+              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
+              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
           | Exp -> (let (t2,u2) = eval consts fconsts calls e2 in
               let iopv i1 i2 =
                 let rec g p x = function
