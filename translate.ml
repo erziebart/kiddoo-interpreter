@@ -134,6 +134,8 @@ let rec translate depth fconsts consts data =
         if List.length exprs = 1 then eval consts fconsts calls (List.hd exprs) else
         let ls = List.map (eval consts fconsts calls) exprs in
         obj_of_list ls )
+
+    | Set(items) -> ( Value(I(0)),false )
   in
 
   (* translate body *)

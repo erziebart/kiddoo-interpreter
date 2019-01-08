@@ -33,6 +33,7 @@ rule token = parse
   | '['                  { LBRACE }
   | ']'                  { RBRACE }
   | ','                  { COMMA }
+  | ':'                  { COLON }
 
   | "#lib"               { LIB }
 

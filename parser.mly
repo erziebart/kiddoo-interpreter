@@ -11,7 +11,7 @@
 %token AND OR NOT
 %token SEMI
 %token DEFINE CONST USE ASSIGN ARROW
-%token LPAREN RPAREN LBRACE RBRACE COMMA
+%token LPAREN RPAREN LBRACE RBRACE COMMA COLON
 %token LIB
 %token <string> ID FID FFID
 %token <int> INTLIT
@@ -19,6 +19,7 @@
 %token EOF
 
 %left COMMA
+%left COLON
 %left SEMI
 %left OR
 %left AND
@@ -107,8 +108,20 @@ noneg_factor:
 value:
     INTLIT { IntLit($1) }
   | FLTLIT { FloatLit($1) }
+  | LBRACE set RBRACE { Set(List.rev $2) }
   | call { $1 } 
   | LPAREN tuple RPAREN { simplify_tuple $2 } 
+
+set: 
+    set_item { [$1] }
+  | set COMMA set_item { $3 :: $1 }
+
+set_item:
+    expr { Element($1) }
+  | COLON expr { Range({start=None; stop=Expr($2); step=None}) }
+  | COLON expr COLON expr { Range({start=None; stop=Expr($2); step=Expr($4)}) }
+  | expr COLON expr { Range({start=Expr($1); stop=Expr($3); step=None}) }
+  | expr COLON expr COLON expr { Range({start=Expr($1); stop=Expr($3); step=Expr($5)}) }
 
 call:
     ID { Var($1) }

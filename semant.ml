@@ -73,7 +73,17 @@ let rec check_stmt depth (calltree,constants) =
           | Found -> funptrs
           | Not_found -> raise(Failure("unknown function "^id)) )
     | Tuple(exprs) -> List.fold_left (check_expr calltree) funptrs exprs
+    | Set(items) -> List.fold_left (check_set_item calltree) funptrs items
     | _ -> funptrs
+  and check_set_item calltree funptrs = function
+    | Element(expr) -> check_expr calltree funptrs expr
+    | Range(range) -> (
+        let check_opt funptrs = function
+          | Expr(expr) -> check_expr calltree funptrs expr
+          | None -> funptrs
+        in
+        let params = [range.start; range.stop; range.step] in
+        List.fold_left check_opt funptrs params )
   in
 
   (* helper functions for construction call tree nodes *)
