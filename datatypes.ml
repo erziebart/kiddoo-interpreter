@@ -112,7 +112,7 @@ let rec not_equal t1 t2 = match t1,t2 with
       | Invalid_argument(_) -> true)
   | _ -> true
 
-let raise_incompatible l1 l2 = raise(Failure("incompatible tuple lengths: " 
+let raise_incompatible msg l1 l2 = raise(Failure(msg ^ ": " 
   ^ string_of_int(List.length l1) ^ "!=" ^ string_of_int(List.length l2)))
 
 let rec arithmetic ~opv ?(opu=(fun v1 v2 -> false)) (t1,u1) (t2,u2)=
@@ -121,4 +121,48 @@ let rec arithmetic ~opv ?(opu=(fun v1 v2 -> false)) (t1,u1) (t2,u2)=
   | Value(_), Tuple(l2) -> Tuple(List.map (fun e2 -> arithmetic ~opv ~opu (t1,u1) e2 ) l2), u
   | Tuple(l1), Value(_) -> Tuple(List.map (fun e1 -> arithmetic ~opv ~opu e1 (t2,u2)) l1), u
   | Tuple(l1), Tuple(l2) -> ( try Tuple(List.map2 (arithmetic ~opv ~opu) l1 l2 ), u with
-      | Invalid_argument(_) -> raise_incompatible l1 l2 )
+      | Invalid_argument(_) -> raise_incompatible "incompatible tuple lengths" l1 l2 )
+
+(* SETS *)
+type set = 
+  | Set of int * set list
+  | Obj of obj
+
+(* conversions *)
+let rec string_of_set = function
+  | Set(_, elts) -> "[" ^ String.concat "\n" (List.map string_of_set elts) ^ "]"
+  | Obj(o) -> string_of_obj o
+
+(* useful operations on sets *)
+let rec unop_on_set ~op = function
+  | Obj(o) -> Obj(op o)
+  | Set(id,elts) -> Set(id, List.map (unop_on_set ~op) elts)
+
+let rec binop_on_set ~op s1 s2 = match s1, s2 with
+  | Obj(o1), Obj(o2) -> Obj(op o1 o2)
+  | Obj(_), Set(id, elts) -> Set(id, List.map (fun s2 -> binop_on_set ~op s1 s2) elts)
+  | Set(id, elts), Obj(_) -> Set(id, List.map (fun s1 -> binop_on_set ~op s1 s2) elts)
+  | Set(id1, elts1), Set(id2, elts2) ->
+      let c = id1 - id2 in 
+      if c < 0 then Set(id1, List.map (fun s1 -> binop_on_set ~op s1 s2) elts1)
+      else if c > 0 then Set(id2, List.map (fun s2 -> binop_on_set ~op s1 s2) elts2)
+      else Set(id1, List.map2 (binop_on_set ~op) elts1 elts2)
+
+let combine_sets s1 s2 = 
+  let combine (d1,u1) (d2,u2) = let u = u1 && u2 in match d1 with
+    | Tuple(l) -> Tuple((d2,u2) :: l), u 
+    | Value(_) -> Tuple([(d2,u2); (d1,u1)]), u
+  in
+  binop_on_set ~op:combine s1 s2
+
+let rec split_set = function
+  | Obj(o) -> (match o with 
+      | Value(_),_ -> [Obj(o)]
+      | Tuple(l),_ -> List.map (fun d -> Obj(d)) l )
+  | Set(id,elts) -> (
+      let matchup l1 l2 = match l1 with
+        | [] -> List.map (fun x -> [x]) l2
+        | _ -> (try List.map2 (fun x y -> y :: x) l1 l2 with
+            | Invalid_argument(_) -> raise_incompatible "cannot split a variable length vector" l1 l2 )
+      in
+      List.map (fun ls -> Set(id, List.rev ls)) (List.fold_left matchup [] (List.map split_set elts)) )

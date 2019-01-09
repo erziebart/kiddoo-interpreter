@@ -22,6 +22,10 @@ let map_filter_depth depth map =
   in
   StringMap.filter (fun _ ls -> ls <> []) (StringMap.map filter map)
 
+(* unique set ids *)
+let set_uuid = ref 0
+let get_uuid () = let res = !set_uuid in incr set_uuid; res
+
 (* evaluates a call tree closure *)
 let rec translate depth fconsts consts data =
   (* evaluates an expression to a value *)
@@ -135,7 +139,7 @@ let rec translate depth fconsts consts data =
         let ls = List.map (eval consts fconsts calls) exprs in
         obj_of_list ls )
 
-    | Set(items) -> ( Value(I(0)),false )
+    | Set(items) -> ( Value(I(get_uuid ())),false )
   in
 
   (* translate body *)

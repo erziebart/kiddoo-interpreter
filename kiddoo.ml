@@ -23,6 +23,12 @@ let _ =
           in
           parse_stmt (Root, StringMap.empty)
         with Sys_error(s) -> print_endline s; exit 0)*)
+    | 1 -> 
+        let set_id = ref 0 in
+        let get_id () = 
+          incr set_id; !set_id
+        in
+        print_endline (string_of_int(get_id ())); print_endline (string_of_int(get_id ()))
     | 2 -> ( (* translate a file as input *)
         try
           let infile = Sys.argv.(1) in
