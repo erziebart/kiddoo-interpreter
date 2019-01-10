@@ -43,16 +43,6 @@ let rec translate depth fconsts consts data =
             if equal dat_false t1 then Obj(dat_false, true) else 
             let s2 = eval consts fconsts calls e2 in
             binop_on_set ~op:lib_div s1 s2 )
-            (* if equal zero t1 then Obj(zero, true) else 
-            let s2 = eval consts fconsts calls e2 in
-            let div (t1,u1) (t2,u2) = 
-              let iop = fun i1 i2 -> F( (/.) (float i1) (float i2) )
-              and fop = fun f1 f2 -> F( (/.) f1 f2) in
-              if equal (Value(I(1))) t1 then t2, u1 || u2 else
-              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2)
-            in 
-            binop_on_set ~op:div s1 s2 ) *)
 
         (* no short circuit *)
         | _,_ -> (
@@ -62,102 +52,26 @@ let rec translate depth fconsts consts data =
 
               (* arithmetic *)
               | Add -> lib_add (t1,u1) (t2,u2)
-                  (* let iop = fun i1 i2 -> I(i1+i2)
-                  and fop = fun f1 f2 -> F(f1+.f2) in
-                  arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2)) *)
-            | Sub -> lib_sub (t1,u1) (t2,u2)
-                (* let iop = fun i1 i2 -> I(i1-i2)
-                and fop = fun f1 f2 -> F(f1-.f2) in
-                arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2)) *)
-            | Mult -> lib_mult (t1,u1) (t2,u2)
-                (* let iop = fun i1 i2 -> I(i1*i2)
-                and fop = fun f1 f2 -> F(f1*.f2) in
-                arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2)) *)
-            | Div -> lib_div (t1,u1) (t2,u2)
-                (* let iop = fun i1 i2 -> F( (/.) (float i1) (float i2) )
-                and fop = fun f1 f2 -> F( (/.) f1 f2) in
-                if equal (Value(I(1))) t1 then t2, u1 || u2 else
-                arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-                ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2)) *)
-            | Idiv -> lib_idiv (t1,u1) (t2,u2)
-                (* let iop = fun i1 i2 -> I( i1 / i2 )
-                and fop = fun f1 f2 -> I( truncate(f1 /. f2)) in
-                arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-                ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2)) *)
-            | Mod -> lib_mod (t1,u1) (t2,u2)
-                (* let iop = fun i1 i2 -> I( i1 mod i2 )
-                and fop = fun f1 f2 -> F( mod_float f1 f2) in
-                arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-                ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2)) *)
-            | Exp -> lib_exp (t1,u1) (t2,u2)
-                (* let iopv i1 i2 =
-                  let rec g p x = function
-                  | 0 -> x
-                  | i -> g (p*p) (if i mod 2 = 1 then p*x else x) (i/2)
-                  in
-                  if i2 < 0 then F((float i1) ** (float i2)) else I(g i1 1 i2)
-                and fopv = fun f1 f2 -> F(f1**f2) 
-                and iopu = fun i1 i2 -> false
-                and fopu = fun f1 f2 -> (f1<0. && fst(modf f2)<>0.) || (f1=0. && f2=0.) in 
-                arithmetic ~opv:(binop_on_typ ~iop:iopv ~fop:fopv) (t1,u1) (t2,u2)
-                ~opu:(binop_on_typ ~iop:iopu ~fop:fopu) ) *)
+              | Sub -> lib_sub (t1,u1) (t2,u2)
+              | Mult -> lib_mult (t1,u1) (t2,u2)
+              | Div -> lib_div (t1,u1) (t2,u2)
+              | Idiv -> lib_idiv (t1,u1) (t2,u2)
+              | Mod -> lib_mod (t1,u1) (t2,u2)
+              | Exp -> lib_exp (t1,u1) (t2,u2)
 
-            (* comparison *)
-            | Equal -> (* (obj_of_bool (equal t1 t2), u1 || u2 ) *) lib_equal (t1,u1) (t2,u2)
-            | Neq -> (* (obj_of_bool (not_equal t1 t2), u1 || u2 ) *) lib_neq (t1,u1) (t2,u2)
-            | Less -> (* (obj_of_bool (compare t1 t2 < 0.), u1 || u2 ) *) lib_less (t1,u1) (t2,u2)
-            | Leq -> (* (obj_of_bool (compare t1 t2 <= 0.), u1 || u2 ) *) lib_leq (t1,u1) (t2,u2)
-            | Greater -> (* (obj_of_bool (compare t1 t2 > 0.), u1 || u2 ) *) lib_greater (t1,u1) (t2,u2)
-            | Geq -> (* (obj_of_bool (compare t1 t2 >= 0.), u1 || u2 ) *) lib_geq (t1,u1) (t2,u2)
+              (* comparison *)
+              | Equal -> lib_equal (t1,u1) (t2,u2)
+              | Neq -> lib_neq (t1,u1) (t2,u2)
+              | Less -> lib_less (t1,u1) (t2,u2)
+              | Leq -> lib_leq (t1,u1) (t2,u2)
+              | Greater -> lib_greater (t1,u1) (t2,u2)
+              | Geq -> lib_geq (t1,u1) (t2,u2)
 
-            (* logical *)
-            | And -> (* (obj_of_bool (not_equal zero t1 && not_equal zero t2), u1 || u2) *) lib_and (t1,u1) (t2,u2)
-            | Or -> (* (obj_of_bool (not_equal zero t1 || not_equal zero t2), u1 || u2) *) lib_or (t1,u1) (t2,u2)
+              (* logical *)
+              | And -> lib_and (t1,u1) (t2,u2)
+              | Or -> lib_or (t1,u1) (t2,u2)
             in
             binop_on_set ~op:op s1 s2 ) )
-
-        (* let (t1, u1) = eval consts fconsts calls e1 in 
-        match op with
-          (* short circuits *)
-          | Part -> (if u1 then eval consts fconsts calls e2 else t1, u1 )
-          | Div -> (if equal dat_false t1 then dat_false, true else 
-              let (t2,u2) = eval consts fconsts calls e2 in
-              if equal dat_true t1 then t2, u1 || u2 else
-              lib_div (t2,u2) (t1,u1))
-
-          (* arithmetic *)
-          | Add -> (let (t2,u2) = eval consts fconsts calls e2 in
-              lib_add (t1,u1) (t2,u2))
-          | Sub -> (let (t2,u2) = eval consts fconsts calls e2 in
-              lib_sub (t1,u1) (t2,u2))
-          | Mult -> (let (t2,u2) = eval consts fconsts calls e2 in
-              lib_mult (t1,u1) (t2,u2))
-          | Idiv -> (let (t2,u2) = eval consts fconsts calls e2 in
-              lib_idiv (t1,u1) (t2,u2))
-          | Mod -> (let (t2,u2) = eval consts fconsts calls e2 in
-              lib_mod (t1,u1) (t2,u2))
-          | Exp -> (let (t2,u2) = eval consts fconsts calls e2 in
-              lib_exp (t1,u1) (t2,u2) )
-
-          (* comparison *)
-          | Equal -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_equal (t1,u1) (t2,u2) )
-          | Neq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_neq (t1,u1) (t2,u2) )
-          | Less -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_less (t1,u1) (t2,u2) )
-          | Leq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_leq (t1,u1) (t2,u2) )
-          | Greater -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_greater (t1,u1) (t2,u2) )
-          | Geq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_geq (t1,u1) (t2,u2) )
-
-          (* logical *)
-          | And -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_and (t1,u1) (t2,u2))
-          | Or -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              lib_or (t1,u1) (t2,u2)) ) *)
 
     | Unop(uop, e) -> (
         let unop = match uop with
@@ -215,12 +129,7 @@ let rec translate depth fconsts consts data =
               in
               make_call values fvalues ) )*)
 
-    | Tuple(exprs) -> (
-        let elements = List.map (eval consts fconsts calls) exprs in
-        List.fold_left combine_sets (List.hd elements) (List.tl elements) )      
-        (* if List.length exprs = 1 then eval consts fconsts calls (List.hd exprs) else
-        let ls = List.map (eval consts fconsts calls) exprs in
-        obj_of_list ls ) *)
+    | Tuple(exprs) -> (set_of_list (List.map (eval consts fconsts calls) exprs) )
 
     | Set(items) -> ( 
         let parse_item ls = function
@@ -247,7 +156,7 @@ let rec translate depth fconsts consts data =
                     let rec make_range cur = if cur < stop then (Obj(Value(F(cur)),false)) :: make_range (cur +. step) else [] in
                     List.rev_append (make_range start) ls ) )
         in
-        Set(get_uuid (), List.fold_left parse_item [] items) )
+        Set(get_uuid (), List.rev (List.fold_left parse_item [] items)) )
   in
 
   (* translate body *)

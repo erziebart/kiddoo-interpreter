@@ -167,4 +167,6 @@ let rec string_of_set = function
   | Set(_, elts) -> "[" ^ String.concat "\n" (List.map string_of_set elts) ^ "]"
   | Obj(o) -> string_of_obj o
 
-let set_of_list sl = List.fold_left combine_sets (List.hd sl) (List.tl sl)
+let set_of_list sl = match sl with
+  | [set] -> set
+  | _ -> List.fold_left combine_sets (Obj(Tuple([]),false)) (List.rev sl)
