@@ -7,7 +7,9 @@ let rec lib_neg = function
   | Value(v),u -> Value(typ_neg v), u
   | Tuple(l),u -> Tuple(List.map lib_neg l), u 
 let lib_mult = arithmetic ~opv:typ_mult
-let lib_div = arithmetic ~opv:typ_div ~opu:(fun v1 v2 -> typ_equal zero v2)
+let lib_div = fun (t1,u1) (t2,u2) ->
+  if equal dat_true t1 then t2, u1 || u2 else 
+  arithmetic ~opv:typ_div ~opu:(fun v1 v2 -> typ_equal zero v2) (t1,u1) (t2,u2)
 let lib_idiv = arithmetic ~opv:typ_idiv ~opu:(fun v1 v2 -> typ_equal zero v1)
 let lib_mod = arithmetic ~opv:typ_mod ~opu:(fun v1 v2 -> typ_equal zero v1) 
 let lib_exp = 

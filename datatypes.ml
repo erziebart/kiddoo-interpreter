@@ -128,11 +128,6 @@ type set =
   | Set of int * set list
   | Obj of obj
 
-(* conversions *)
-let rec string_of_set = function
-  | Set(_, elts) -> "[" ^ String.concat "\n" (List.map string_of_set elts) ^ "]"
-  | Obj(o) -> string_of_obj o
-
 (* useful operations on sets *)
 let rec unop_on_set ~op = function
   | Obj(o) -> Obj(op o)
@@ -166,3 +161,10 @@ let rec split_set = function
             | Invalid_argument(_) -> raise_incompatible "cannot split a variable length vector" l1 l2 )
       in
       List.map (fun ls -> Set(id, List.rev ls)) (List.fold_left matchup [] (List.map split_set elts)) )
+
+(* conversions *)
+let rec string_of_set = function
+  | Set(_, elts) -> "[" ^ String.concat "\n" (List.map string_of_set elts) ^ "]"
+  | Obj(o) -> string_of_obj o
+
+let set_of_list sl = List.fold_left combine_sets (List.hd sl) (List.tl sl)
