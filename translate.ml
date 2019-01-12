@@ -48,7 +48,7 @@ let rec translate depth fconsts consts data =
       else raise( Failure("wrong number of arguments for " ^ name))
     in
     let standard ~func arr = let (t,u) = arr.(0) in match t with
-      | Value(v) -> Value(func (ensure_float v)), u
+      | Value(v) -> Value(func (float_of_typ v)), u
       | Tuple(l) -> raise( Failure("wrong type of argument for " ^ name))
     in
     match name with
@@ -88,8 +88,8 @@ let rec translate depth fconsts consts data =
 
     | "print" -> (
         match args with
-          | [] -> print_newline (); zero, false
-          | _ -> print_endline (string_of_obj (obj_of_list args)); zero, false )
+          | [] -> print_newline (); dat_false, false
+          | _ -> print_endline (string_of_obj (obj_of_list args)); dat_false, false )
     | "scan" -> 
         ignore(check_args 0);
         Value(F(read_float ())), false
@@ -108,49 +108,26 @@ let rec translate depth fconsts consts data =
         match op with
           (* short circuits *)
           | Part -> (if u1 then eval consts fconsts calls e2 else t1, u1 )
-          | Div -> (if equal zero t1 then zero, true else 
+          | Div -> (if equal dat_false t1 then dat_false, true else 
               let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> F( (/.) (float i1) (float i2) )
-              and fop = fun f1 f2 -> F( (/.) f1 f2) in
-              if equal (Value(I(1))) t1 then t2, u1 || u2 else
-              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
+              if equal dat_true t1 then t2, u1 || u2 else
+              arithmetic ~opv:typ_div ~opu:(fun v1 v2 -> typ_equal zero v2) (t2,u2) (t1,u1))
 
           (* arithmetic *)
           | Add -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I(i1+i2)
-              and fop = fun f1 f2 -> F(f1+.f2) in
-              arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2))
+              arithmetic ~opv:typ_add (t1,u1) (t2,u2))
           | Sub -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I(i1-i2)
-              and fop = fun f1 f2 -> F(f1-.f2) in
-              arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2))
+              arithmetic ~opv:typ_sub (t1,u1) (t2,u2))
           | Mult -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I(i1*i2)
-              and fop = fun f1 f2 -> F(f1*.f2) in
-              arithmetic ~opv:(binop_on_typ ~iop:iop ~fop:fop) (t1,u1) (t2,u2))
+              arithmetic ~opv:typ_mult (t1,u1) (t2,u2))
           | Idiv -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I( i1 / i2 )
-              and fop = fun f1 f2 -> I( truncate(f1 /. f2)) in
-              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
+              arithmetic ~opv:typ_idiv ~opu:(fun v1 v2 -> typ_equal zero v1) (t1,u1) (t2,u2))
           | Mod -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iop = fun i1 i2 -> I( i1 mod i2 )
-              and fop = fun f1 f2 -> F( mod_float f1 f2) in
-              arithmetic ~opv:(fun v1 v2 -> binop_on_typ ~iop:iop ~fop:fop v2 v1) 
-              ~opu:(fun v1 v2 -> unop_on_typ ~iop:((=) 0) ~fop:((=) 0.) v1) (t1,u1) (t2,u2))
+              arithmetic ~opv:typ_mod ~opu:(fun v1 v2 -> typ_equal zero v1) (t1,u1) (t2,u2))
           | Exp -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iopv i1 i2 =
-                let rec g p x = function
-                | 0 -> x
-                | i -> g (p*p) (if i mod 2 = 1 then p*x else x) (i/2)
-                in
-                if i2 < 0 then F((float i1) ** (float i2)) else I(g i1 1 i2)
-              and fopv = fun f1 f2 -> F(f1**f2) 
-              and iopu = fun i1 i2 -> false
+              let iopu = fun i1 i2 -> false
               and fopu = fun f1 f2 -> (f1<0. && fst(modf f2)<>0.) || (f1=0. && f2=0.) in 
-              arithmetic ~opv:(binop_on_typ ~iop:iopv ~fop:fopv) (t1,u1) (t2,u2)
-              ~opu:(binop_on_typ ~iop:iopu ~fop:fopu) )
+              arithmetic ~opv:typ_exp ~opu:(binop_on_typ ~iop:iopu ~fop:fopu) (t1,u1) (t2,u2) )
 
           (* comparison *)
           | Equal -> (let (t2,u2) = eval consts fconsts calls e2 in 
@@ -168,19 +145,19 @@ let rec translate depth fconsts consts data =
 
           (* logical *)
           | And -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (not_equal zero t1 && not_equal zero t2), u1 || u2)
+              obj_of_bool (not_equal dat_false t1 && not_equal dat_false t2), u1 || u2)
           | Or -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (not_equal zero t1 || not_equal zero t2), u1 || u2) )
+              obj_of_bool (not_equal dat_false t1 || not_equal dat_false t2), u1 || u2) )
 
     | Unop(uop, e) -> (
         let t,u = eval consts fconsts calls e in
         match uop with
           | Neg -> (
               let rec neg = function
-                | Value(v),u -> Value(unop_on_typ ~iop:(fun i -> I(~-i)) ~fop:(fun f -> F(~-.f)) v), u
+                | Value(v),u -> Value(typ_neg v), u
                 | Tuple(l),u -> Tuple(List.map neg l), u
               in neg (t,u) )
-          | Not -> obj_of_bool (equal zero t), u )
+          | Not -> obj_of_bool (equal dat_false t), u )
 
     | Var(id) -> 
         (try fst (map_find id consts) with
