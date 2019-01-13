@@ -1,6 +1,7 @@
 open Ast
 open Semant
 open Datatypes
+open Runtime
 
 module StringMap = Map.Make(String)
 
@@ -23,63 +24,6 @@ let map_filter_depth depth map =
 
 (* evaluates a call tree closure *)
 let rec translate depth fconsts consts data =
-  (* evaluates calls to runtime library functions *)
-  let lib_eval name args fargs = 
-    let check_args n =  
-      if List.length args = n 
-      then Array.init n (fun i -> List.nth args i)
-      else raise( Failure("wrong number of arguments for " ^ name))
-    in
-    let standard ~func arr = let (t,u) = arr.(0) in match t with
-      | Value(v) -> Value(func (float_of_typ v)), u
-      | Tuple(l) -> raise( Failure("wrong type of argument for " ^ name))
-    in
-    match name with
-    | "floor" ->
-        let arr = check_args 1 in 
-        standard ~func:(fun f -> I(truncate(floor f))) arr       
-    | "ceil" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> I(truncate(ceil f))) arr     
-    | "exp" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(exp f)) arr
-    | "loge" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(log f)) arr
-    | "sin" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(sin f)) arr
-    | "cos" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(cos f)) arr
-    | "tan" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(tan f)) arr
-    | "asin" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(asin f)) arr
-    | "acos" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(acos f)) arr
-    | "atan" -> 
-        let arr = check_args 1 in
-        standard ~func:(fun f -> F(atan f)) arr
-    | "isDef" -> 
-        let arr = check_args 1 in
-        obj_of_bool (not (snd arr.(0))), false
-
-    | "print" -> (
-        match args with
-          | [] -> print_newline (); dat_false, false
-          | _ -> print_endline (string_of_obj (obj_of_list args)); dat_false, false )
-    | "scan" -> 
-        ignore(check_args 0);
-        Value(F(read_float ())), false
-
-    | _ -> raise( Failure(name ^ ": definition not found"))
-  in
-
   (* evaluates an expression to a value *)
   let rec eval consts fconsts calls = function
     | FloatLit(l) -> Value(F(l)), false
@@ -94,53 +38,47 @@ let rec translate depth fconsts consts data =
           | Div -> (if equal dat_false t1 then dat_false, true else 
               let (t2,u2) = eval consts fconsts calls e2 in
               if equal dat_true t1 then t2, u1 || u2 else
-              arithmetic ~opv:typ_div ~opu:(fun v1 v2 -> typ_equal zero v2) (t2,u2) (t1,u1))
+              lib_div (t2,u2) (t1,u1))
 
           (* arithmetic *)
           | Add -> (let (t2,u2) = eval consts fconsts calls e2 in
-              arithmetic ~opv:typ_add (t1,u1) (t2,u2))
+              lib_add (t1,u1) (t2,u2))
           | Sub -> (let (t2,u2) = eval consts fconsts calls e2 in
-              arithmetic ~opv:typ_sub (t1,u1) (t2,u2))
+              lib_sub (t1,u1) (t2,u2))
           | Mult -> (let (t2,u2) = eval consts fconsts calls e2 in
-              arithmetic ~opv:typ_mult (t1,u1) (t2,u2))
+              lib_mult (t1,u1) (t2,u2))
           | Idiv -> (let (t2,u2) = eval consts fconsts calls e2 in
-              arithmetic ~opv:typ_idiv ~opu:(fun v1 v2 -> typ_equal zero v1) (t1,u1) (t2,u2))
+              lib_idiv (t1,u1) (t2,u2))
           | Mod -> (let (t2,u2) = eval consts fconsts calls e2 in
-              arithmetic ~opv:typ_mod ~opu:(fun v1 v2 -> typ_equal zero v1) (t1,u1) (t2,u2))
+              lib_mod (t1,u1) (t2,u2))
           | Exp -> (let (t2,u2) = eval consts fconsts calls e2 in
-              let iopu = fun i1 i2 -> false
-              and fopu = fun f1 f2 -> (f1<0. && fst(modf f2)<>0.) || (f1=0. && f2=0.) in 
-              arithmetic ~opv:typ_exp ~opu:(binop_on_typ ~iop:iopu ~fop:fopu) (t1,u1) (t2,u2) )
+              lib_exp (t1,u1) (t2,u2) )
 
           (* comparison *)
           | Equal -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (equal t1 t2), u1 || u2 )
+              lib_equal (t1,u1) (t2,u2) )
           | Neq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (not_equal t1 t2), u1 || u2 )
+              lib_neq (t1,u1) (t2,u2) )
           | Less -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (compare t1 t2 < 0.), u1 || u2 )
+              lib_less (t1,u1) (t2,u2) )
           | Leq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (compare t1 t2 <= 0.), u1 || u2 )
+              lib_leq (t1,u1) (t2,u2) )
           | Greater -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (compare t1 t2 > 0.), u1 || u2 )
+              lib_greater (t1,u1) (t2,u2) )
           | Geq -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (compare t1 t2 >= 0.), u1 || u2 )
+              lib_geq (t1,u1) (t2,u2) )
 
           (* logical *)
           | And -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (not_equal dat_false t1 && not_equal dat_false t2), u1 || u2)
+              lib_and (t1,u1) (t2,u2))
           | Or -> (let (t2,u2) = eval consts fconsts calls e2 in 
-              obj_of_bool (not_equal dat_false t1 || not_equal dat_false t2), u1 || u2) )
+              lib_or (t1,u1) (t2,u2)) )
 
     | Unop(uop, e) -> (
-        let t,u = eval consts fconsts calls e in
-        match uop with
-          | Neg -> (
-              let rec neg = function
-                | Value(v),u -> Value(typ_neg v), u
-                | Tuple(l),u -> Tuple(List.map neg l), u
-              in neg (t,u) )
-          | Not -> obj_of_bool (equal dat_false t), u )
+        let unop = match uop with
+          | Neg -> lib_neg
+          | Not -> lib_not
+        in unop (eval consts fconsts calls e) )
 
     | Var(id) -> 
         (try fst (map_find id consts) with
