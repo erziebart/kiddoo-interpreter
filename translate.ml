@@ -23,23 +23,6 @@ let map_filter_depth depth map =
 
 (* evaluates a call tree closure *)
 let rec translate depth fconsts consts data =
-  
-  (* switches to the given scope by updating constants lists *)
-  let switch_scope depth params fparams args fargs inner consts fconsts = 
-    let outer = map_filter_depth depth consts 
-    and fouter = map_filter_depth depth fconsts
-    in
-    let add_arg map id value = map_add id (value,depth+1) map in
-    let wargs = if List.length params = 1 
-      then add_arg outer (List.hd params) (obj_of_list args)
-      else try List.fold_left2 add_arg outer params args with 
-        | Invalid_argument(s) -> raise(Failure("wrong number of arguments"))
-    and fwargs = try List.fold_left2 add_arg fouter fparams fargs with
-      | Invalid_argument(s) -> raise(Failure("wrong number of function arguments"))
-    in
-    List.fold_left (translate (depth+1) fwargs) wargs inner, fwargs
-  in
-
   (* evaluates calls to runtime library functions *)
   let lib_eval name args fargs = 
     let check_args n =  
@@ -163,24 +146,51 @@ let rec translate depth fconsts consts data =
         (try fst (map_find id consts) with
           | Not_found -> raise(Failure("variable " ^ id ^ " missing")) )
 
-    | Call(id,fargs,args) -> 
-        (let find_func id = try StringMap.find id calls with
+    | Call(id,fargs,args) -> (
+        (* locate the function data *)
+        let find_func id = try StringMap.find id calls with
           | Not_found -> fst (map_find id fconsts)
         in
         let fdata = try find_func id with
           | Not_found -> raise(Failure("function " ^ id ^ " missing"))
         in 
+
+        (* compute the arguments *)        
         let values = List.map (eval consts fconsts calls) args
         and fvalues = List.map 
           (fun name -> try find_func name with 
             | Not_found -> raise(Failure("function argument " ^ name ^ " missing")) 
           ) fargs
         in
-        let fnames = List.map (fun (s,_,_) -> s) fdata.fparams in
-        let (locals, flocals) = switch_scope fdata.depth fdata.params fnames values fvalues fdata.fconsts consts fconsts in
+
+        (* match with program or runtime library function *)
         match fdata.e with
           | Tuple([]) -> lib_eval id values fvalues
-          | _ -> eval locals flocals fdata.fcalls fdata.e )
+          | _ -> (
+              (* function paramters *)
+              let params = fdata.params
+              and fparams = List.map (fun (s,_,_) -> s) fdata.fparams in
+
+              (* filter away variables that are no longer visible *)
+              let depth = fdata.depth in
+              let outer = map_filter_depth depth consts 
+              and fouter = map_filter_depth depth fconsts
+              in
+
+              (* produces the result of calling the function with given arguments *)
+              let make_call args fargs = 
+                let add_arg map id value = map_add id (value,depth+1) map in
+                let locals = if List.length params = 1 
+                  then add_arg outer (List.hd params) (obj_of_list args)
+                  else try List.fold_left2 add_arg outer params args with 
+                    | Invalid_argument(s) -> raise(Failure("wrong number of arguments"))
+                and flocals = try List.fold_left2 add_arg fouter fparams fargs with
+                  | Invalid_argument(s) -> raise(Failure("wrong number of function arguments"))
+                in
+                let locals = List.fold_left (translate (depth+1) flocals) locals fdata.fconsts in
+                eval locals flocals fdata.fcalls fdata.e
+              in
+              make_call values fvalues ) )
 
     | Tuple(exprs) -> (
         if List.length exprs = 1 then eval consts fconsts calls (List.hd exprs) else
@@ -189,8 +199,8 @@ let rec translate depth fconsts consts data =
   in
 
   (* translate body *)
-  let (locals, flocals) = switch_scope depth [] [] [] [] data.consts consts fconsts in
-  let results = List.map (eval locals flocals data.calls) data.exprs in
+  let consts = List.fold_left (translate (depth+1) fconsts) consts data.consts in
+  let results = List.map (eval consts fconsts data.calls) data.exprs in
   match data.names with
     | [id] -> (
         let result = obj_of_list results in
