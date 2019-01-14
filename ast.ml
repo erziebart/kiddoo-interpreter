@@ -9,6 +9,7 @@ type expr =
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Var of string
+  | Access of expr * expr list
   | Call of string * string list * expr list
   | Tuple of expr list
   | Set of item list
@@ -78,6 +79,7 @@ let rec string_of_expr = function
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_tuple a ^ ")"
   | Var(s) -> s
+  | Access(e,exprs) -> string_of_expr e ^ "." ^ string_of_tuple exprs
   | Tuple(exprs) -> string_of_tuple exprs
   | Set(items) -> "[" ^ String.concat ", " (List.map string_of_set_item items) ^ "]"
 and string_of_tuple exprs = String.concat ", " (List.map string_of_expr exprs)

@@ -36,6 +36,7 @@ rule token = parse
   | ")["                 { PARENBRACE }
   | ','                  { COMMA }
   | ':'                  { COLON }
+  | '.'                  { DOT }
 
   | "#lib"               { LIB }
 

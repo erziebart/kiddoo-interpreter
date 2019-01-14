@@ -83,6 +83,36 @@ let rec translate depth fconsts consts data =
         (try fst (map_find id consts) with
           | Not_found -> raise(Failure("variable " ^ id ^ " missing")) )
 
+    | Access(e,exprs) -> (
+        let set = eval consts fconsts calls e in
+        let indexes = List.map (eval consts fconsts calls) exprs in
+
+        let rec access_member s idxs = 
+          let assert_int = 
+          function
+            | Value(I(idx)),u -> idx,u
+            | _ -> raise(Failure("set index must be an integer"))
+          in
+          let get_nth ls idx = 
+            let len = List.length ls in
+            let i = idx mod len in
+            let i = if i < 0 then len + i else i in
+            List.nth ls i
+          in
+          match s,idxs with
+          | Set(_,elts), hd :: tl -> (let idx,u = assert_int hd in 
+              if u then Obj(dat_false, true) else access_member (get_nth elts idx) tl)
+          | Set(_,_), [] -> s
+          | Obj(_,_), _ -> s
+        in
+        
+        let rec map_access = function
+          | Obj(t,u) -> access_member set (list_of_obj (t,u))
+          | Set(id,elts) -> Set(id, List.map map_access elts)
+        in 
+        map_access (set_of_list indexes)
+        )
+
     | Call(id,fargs,args) -> (
         (* locate the function data *)
         let find_func id = try StringMap.find id calls with

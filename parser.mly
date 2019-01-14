@@ -10,6 +10,7 @@
 %token EQ NEQ LT GT LEQ GEQ
 %token AND OR NOT
 %token SEMI
+%token DOT
 %token DEFINE CONST USE ASSIGN ARROW
 %token LPAREN RPAREN LBRACE RBRACE BRACEPAREN PARENBRACE COMMA COLON
 %token LIB
@@ -29,6 +30,7 @@
 %left TIMES DIVIDE INTDIV MODULUS
 %right NOT NEG
 %right POWER
+%left DOT
 
 %start program
 %type <Ast.program> program
@@ -113,6 +115,7 @@ value:
   | LBRACE set RBRACE { Set(List.rev $2) }
   | call { $1 } 
   | LPAREN tuple RPAREN { simplify_tuple $2 } 
+  | value DOT LPAREN tuple RPAREN { Access($1, List.rev $4) }
 
 set: 
     set_item { [$1] }
