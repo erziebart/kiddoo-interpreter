@@ -44,8 +44,8 @@ let typ_add t1 t2 = mixed_binop_on_typ ~iop:(+) ~fop:(+.) t1 t2
 let typ_sub t1 t2 = mixed_binop_on_typ ~iop:(-) ~fop:(-.) t1 t2
 let typ_mult t1 t2 = mixed_binop_on_typ ~iop:( * ) ~fop:( *.) t1 t2
 let typ_div t1 t2 = float_binop_on_typ ~fop:(/.) t1 t2
-let typ_idiv t1 t2 = int_binop_on_typ ~iop:(/) ~fop:(fun f1 f2 -> truncate ((/.) f1 f2)) t1 t2
-let typ_mod t1 t2 = mixed_binop_on_typ ~iop:(mod) ~fop:(mod_float) t1 t2
+let typ_idiv t1 t2 = int_binop_on_typ ~iop:(fun i1 i2 -> if i2 = 0 then 0 else i1/i2) ~fop:(fun f1 f2 -> truncate (f1 /. f2)) t1 t2
+let typ_mod t1 t2 = mixed_binop_on_typ ~iop:(fun i1 i2 -> if i2 = 0 then 0 else i1 mod i2) ~fop:(mod_float) t1 t2
 let typ_comp t1 t2 = compare (float_of_typ t1) (float_of_typ t2)
 let typ_equal t1 t2 = (=) (float_of_typ t1) (float_of_typ t2)
 let typ_neg t = unop_on_typ ~iop:(~-) ~fop:(~-.) t

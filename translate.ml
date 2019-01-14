@@ -42,7 +42,7 @@ let rec translate depth fconsts consts data =
         | Obj(t1,u1), Div -> (
             if equal dat_false t1 then Obj(dat_false, true) else 
             let s2 = eval consts fconsts calls e2 in
-            binop_on_set ~op:lib_div s1 s2 )
+            binop_on_set ~op:lib_div s2 s1 )
 
         (* no short circuit *)
         | _,_ -> (
@@ -54,9 +54,9 @@ let rec translate depth fconsts consts data =
               | Add -> lib_add (t1,u1) (t2,u2)
               | Sub -> lib_sub (t1,u1) (t2,u2)
               | Mult -> lib_mult (t1,u1) (t2,u2)
-              | Div -> lib_div (t1,u1) (t2,u2)
-              | Idiv -> lib_idiv (t1,u1) (t2,u2)
-              | Mod -> lib_mod (t1,u1) (t2,u2)
+              | Div -> lib_div (t2,u2) (t1,u1)
+              | Idiv -> lib_idiv (t2,u2) (t1,u1)
+              | Mod -> lib_mod (t2,u2) (t1,u1)
               | Exp -> lib_exp (t1,u1) (t2,u2)
 
               (* comparison *)
@@ -83,7 +83,7 @@ let rec translate depth fconsts consts data =
         (try fst (map_find id consts) with
           | Not_found -> raise(Failure("variable " ^ id ^ " missing")) )
 
-    (*| Call(id,fargs,args) -> (
+    | Call(id,fargs,args) -> (
         (* locate the function data *)
         let find_func id = try StringMap.find id calls with
           | Not_found -> fst (map_find id fconsts)
@@ -118,16 +118,22 @@ let rec translate depth fconsts consts data =
               let make_call args fargs = 
                 let add_arg map id value = map_add id (value,depth+1) map in
                 let locals = if List.length params = 1 
-                  then add_arg outer (List.hd params) (obj_of_list args)
-                  else try List.fold_left2 add_arg outer params args with 
-                    | Invalid_argument(s) -> raise(Failure("wrong number of arguments"))
+                  then add_arg outer (List.hd params) (Obj(obj_of_list args))
+                  else try List.fold_left2 add_arg outer params (List.map (fun e -> Obj(e)) args) with 
+                    | Invalid_argument(s) -> raise(Failure("wrong number of arguments for " ^ id))
                 and flocals = try List.fold_left2 add_arg fouter fparams fargs with
-                  | Invalid_argument(s) -> raise(Failure("wrong number of function arguments"))
+                  | Invalid_argument(s) -> raise(Failure("wrong number of function arguments for " ^ id))
                 in
                 let locals = List.fold_left (translate (depth+1) flocals) locals fdata.fconsts in
                 eval locals flocals fdata.fcalls fdata.e
               in
-              make_call values fvalues ) )*)
+
+              (* calls the function for all arguments in the set *)
+              let rec map_call = function
+                | Obj(t,u) -> make_call (list_of_obj (t,u)) fvalues
+                | Set(id,elts) -> Set(id, List.map map_call elts)
+              in
+              map_call (set_of_list values) ) )
 
     | Tuple(exprs) -> (set_of_list (List.map (eval consts fconsts calls) exprs) )
 

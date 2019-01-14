@@ -4,4 +4,4 @@ def fn2(y,z) =
   def fn2a(x) = x + y + z + fn(3)
   -> fn2a(y+z) - y z
 
--> fn2(4,5) - fn(2)
+-> fn2(4,5) - fn(2) {* 2 *}
