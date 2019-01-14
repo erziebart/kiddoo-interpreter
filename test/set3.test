@@ -1,0 +1,5 @@
+def makeset(start,stop,step) = [start:stop:step]
+
+def func[set<3 0>](start,stop) = set(start,stop,1)
+
+-> func[makeset](1,[1:5])

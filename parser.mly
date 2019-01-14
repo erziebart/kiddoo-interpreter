@@ -11,7 +11,7 @@
 %token AND OR NOT
 %token SEMI
 %token DEFINE CONST USE ASSIGN ARROW
-%token LPAREN RPAREN LBRACE RBRACE COMMA COLON
+%token LPAREN RPAREN LBRACE RBRACE BRACEPAREN PARENBRACE COMMA COLON
 %token LIB
 %token <string> ID FID FFID
 %token <int> INTLIT
@@ -61,8 +61,10 @@ decl:
 func:
     ID { { fname = $1; fparams = []; locals = [] } }
   | FID formals_opt RPAREN { { fname = $1; fparams = []; locals = List.rev($2) } }
-  | FFID formal_funcs RBRACE LPAREN formals_opt RPAREN { { fname = $1; fparams = List.rev($2); locals = List.rev($5) } }
-  | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); locals = List.rev($2) } }
+/*| FFID formal_funcs RBRACE LPAREN formals_opt RPAREN { { fname = $1; fparams = List.rev($2); locals = List.rev($5) } }
+  | FID formals_opt RPAREN LBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($5); locals = List.rev($2) } }*/
+  | FFID formal_funcs BRACEPAREN formals_opt RPAREN { { fname = $1; fparams = List.rev($2); locals = List.rev($4) } }
+  | FID formals_opt PARENBRACE formal_funcs RBRACE { { fname = $1; fparams = List.rev($4); locals = List.rev($2) } }
 
 def:
     decl_list ARROW tuple { Composite(List.rev($1), List.rev $3) }
@@ -126,8 +128,8 @@ set_item:
 call:
     ID { Var($1) }
   | FID actuals_opt RPAREN { Call($1, [], $2) } 
-  | FFID id_list RBRACE LPAREN actuals_opt RPAREN { Call($1, List.rev($2), $5) } 
-  | FID actuals_opt RPAREN LBRACE id_list RBRACE { Call($1, List.rev($5), $2) }
+  | FFID formals_opt BRACEPAREN actuals_opt RPAREN { Call($1, List.rev($2), $4) } 
+  | FID actuals_opt PARENBRACE formals_opt RBRACE { Call($1, List.rev($4), $2) }
  
 formals_opt: 
     /* nothing */ { [] }
