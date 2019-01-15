@@ -32,7 +32,11 @@ rule token = parse
   | ')'                  { RPAREN }
   | '['                  { LBRACE }
   | ']'                  { RBRACE }
+  | "]("                 { BRACEPAREN }
+  | ")["                 { PARENBRACE }
   | ','                  { COMMA }
+  | ':'                  { COLON }
+  | '.'                  { DOT }
 
   | "#lib"               { LIB }
 

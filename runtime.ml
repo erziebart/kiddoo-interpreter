@@ -7,9 +7,11 @@ let rec lib_neg = function
   | Value(v),u -> Value(typ_neg v), u
   | Tuple(l),u -> Tuple(List.map lib_neg l), u 
 let lib_mult = arithmetic ~opv:typ_mult
-let lib_div = arithmetic ~opv:typ_div ~opu:(fun v1 v2 -> typ_equal zero v2)
-let lib_idiv = arithmetic ~opv:typ_idiv ~opu:(fun v1 v2 -> typ_equal zero v1)
-let lib_mod = arithmetic ~opv:typ_mod ~opu:(fun v1 v2 -> typ_equal zero v1) 
+let lib_div = fun (t1,u1) (t2,u2) ->
+  if equal dat_true t2 then t1, u1 || u2 else 
+  arithmetic ~opv:typ_div ~opu:(fun v1 v2 -> typ_equal zero v2) (t1,u1) (t2,u2)
+let lib_idiv = arithmetic ~opv:typ_idiv ~opu:(fun v1 v2 -> typ_equal zero v2)
+let lib_mod = arithmetic ~opv:typ_mod ~opu:(fun v1 v2 -> typ_equal zero v2) 
 let lib_exp = 
   let iopu = fun i1 i2 -> false
   and fopu = fun f1 f2 -> (f1<0. && fst(modf f2)<>0.) || (f1=0. && f2=0.) in 
@@ -34,17 +36,19 @@ let lib_eval name args fargs =
 	  then Array.init n (fun i -> List.nth args i)
 	  else raise( Failure("wrong number of arguments for " ^ name))
 	in
-	let standard ~func arr = let (t,u) = arr.(0) in match t with
-	  | Value(v) -> Value(func (float_of_typ v)), u
-	  | Tuple(l) -> raise( Failure("wrong type of argument for " ^ name))
+	let standard ~func arr = 
+	  let op (t,u) = match t with
+	  	| Value(v) -> Value(func (float_of_typ v)), u
+	  	| Tuple(l) -> raise( Failure("wrong type of argument for " ^ name))
+	  in unop_on_set ~op:op arr.(0)
 	in
 	match name with
 	| "floor" ->
-	    let arr = check_args 1 in 
-	    standard ~func:(fun f -> I(truncate(floor f))) arr       
+	    let arr = check_args 1 in
+	    standard ~func:(fun f -> I(truncate(floor f))) arr
 	| "ceil" -> 
 	    let arr = check_args 1 in
-	    standard ~func:(fun f -> I(truncate(ceil f))) arr     
+	    standard ~func:(fun f -> I(truncate(ceil f))) arr
 	| "exp" -> 
 	    let arr = check_args 1 in
 	    standard ~func:(fun f -> F(exp f)) arr
@@ -70,15 +74,14 @@ let lib_eval name args fargs =
 	    let arr = check_args 1 in
 	    standard ~func:(fun f -> F(atan f)) arr
 	| "isDef" -> 
-	    let arr = check_args 1 in
-	    obj_of_bool (not (snd arr.(0))), false
+	    unop_on_set ~op:(fun (_,u) -> obj_of_bool (not u), false) (set_of_list args)
 
 	| "print" -> (
 	    match args with
-	      | [] -> print_newline (); dat_false, false
-	      | _ -> print_endline (string_of_obj (obj_of_list args)); dat_false, false )
+	      | [] -> print_newline (); Obj(dat_false, false)
+	      | _ -> print_endline (string_of_set (set_of_list args)); Obj(dat_false, false) )
 	| "scan" -> 
 	    ignore(check_args 0);
-	    Value(F(read_float ())), false
+	    Obj(Value(F(read_float ())), false)
 
 	| _ -> raise( Failure(name ^ ": definition not found"))

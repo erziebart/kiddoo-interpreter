@@ -9,8 +9,21 @@ type expr =
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Var of string
+  | Access of expr * expr list
   | Call of string * string list * expr list
   | Tuple of expr list
+  | Set of item list
+and item = 
+    Element of expr
+  | Range of range
+and opt_expr = 
+    Expr of expr
+  | None
+and range = {
+  start: opt_expr;
+  stop: opt_expr;
+  step: opt_expr;
+}
 
 type sigture = string * int * int
 
@@ -66,8 +79,16 @@ let rec string_of_expr = function
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
   | Call(n, f, a) -> n ^ string_of_fargs f ^ "(" ^ string_of_tuple a ^ ")"
   | Var(s) -> s
+  | Access(e,exprs) -> string_of_expr e ^ "." ^ string_of_tuple exprs
   | Tuple(exprs) -> string_of_tuple exprs
+  | Set(items) -> "[" ^ String.concat ", " (List.map string_of_set_item items) ^ "]"
 and string_of_tuple exprs = String.concat ", " (List.map string_of_expr exprs)
+and string_of_set_item = function
+    Element(expr) -> string_of_expr expr
+  | Range(range) -> string_of_opt_expr range.start ^ ": " ^ string_of_opt_expr range.stop ^ ": " ^ string_of_opt_expr range.step
+and string_of_opt_expr = function
+    Expr(e) -> string_of_expr e
+  | None -> ""
 
 let string_of_sigture (id, l1, l2) = id ^ "<" ^ string_of_int l1 ^ " " ^ string_of_int l2 ^ ">"
 

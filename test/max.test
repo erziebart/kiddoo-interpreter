@@ -1,0 +1,16 @@
+def MAX[func<1 0>](idx, stop) = 
+  def max(a,b) = a / (a>=b) ; b
+  con entry = func(idx)
+  -> max(entry,MAX[func](idx+1,stop)) / (idx<stop-1) ; entry
+
+con a = [90,24,62,53,13,55]
+con b = [11,15,26,15,14,11]
+con c = [7,3,6,3,2,6,2,4,10]
+
+def idx_a(i) = a.(i)
+def idx_b(i) = b.(i)
+def idx_c(i) = c.(i)
+
+-> MAX[idx_a](0,6) {* 90 *}
+-> MAX[idx_b](0,6) {* 26 *}
+-> MAX[idx_c](0,9) {* 10 *}
