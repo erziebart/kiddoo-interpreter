@@ -1,0 +1,7 @@
+con empty = []
+
+def func(x) = x^2 - 1
+
+-> empty * [1,2,3]
+-> func(empty)
+-> empty,0

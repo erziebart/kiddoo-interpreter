@@ -95,9 +95,12 @@ let rec translate depth fconsts consts data =
           in
           let get_nth ls idx = 
             let len = List.length ls in
-            let i = idx mod len in
-            let i = if i < 0 then len + i else i in
-            List.nth ls i
+            if len > 0 then
+              let i = idx mod len in
+              let i = if i < 0 then len + i else i in
+              List.nth ls i
+            else
+              raise(Failure("cannot index an empty set"))
           in
           match s,idxs with
           | Set(_,elts), hd :: tl -> (let idx,u = assert_int hd in 

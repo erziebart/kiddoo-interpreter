@@ -117,9 +117,13 @@ value:
   | LPAREN tuple RPAREN { simplify_tuple $2 } 
   | value DOT LPAREN tuple RPAREN { Access($1, List.rev $4) }
 
-set: 
+set:
+    /*nothing*/ { [] }
+  | set_item_list { $1 }
+
+set_item_list: 
     set_item { [$1] }
-  | set COMMA set_item { $3 :: $1 }
+  | set_item_list COMMA set_item { $3 :: $1 }
 
 set_item:
     expr { Element($1) }
