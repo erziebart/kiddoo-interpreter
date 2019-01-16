@@ -1,0 +1,8 @@
+{* find the first n fibonacci numbers -- O(n) *}
+def fibn(n) =
+  def loop(i) =
+    con a,b = (b,a+b) ; (0,1)
+    -> a
+  -> loop([:n])
+
+-> fibn(12)

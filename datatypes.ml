@@ -169,4 +169,4 @@ let rec string_of_set = function
 
 let set_of_list sl = match sl with
   | [set] -> set
-  | _ -> List.fold_left combine_sets (Obj(Tuple([]),false)) (List.rev sl)
+  | _ -> List.fold_left combine_sets (Obj(Tuple([]),true)) (List.rev sl)

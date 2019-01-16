@@ -23,20 +23,16 @@ let _ =
           in
           parse_stmt (Root, StringMap.empty)
         with Sys_error(s) -> print_endline s; exit 0)*)
-    | 1 -> 
-        let set_id = ref 0 in
-        let get_id () = 
-          incr set_id; !set_id
-        in
-        print_endline (string_of_int(get_id ())); print_endline (string_of_int(get_id ()))
     | 2 -> ( (* translate a file as input *)
         try
           let infile = Sys.argv.(1) in
           let ic = open_in infile in
           let lexbuf = Lexing.from_channel ic in
           let ast = Parser.program Scanner.token lexbuf in
-          let (_,constants) = List.fold_left (Semant.check_stmt 0) (Root,[]) ast in
-          ignore (List.fold_left (Translate.translate 0 StringMap.empty) StringMap.empty (List.rev constants))
+          let (_,constants,functions) = List.fold_left (Semant.check_stmt 0) (Root,[],[]) ast in
+          let globals = Translate.map_append 0 (Translate.reset_function constants) StringMap.empty in
+          List.iter (fun fdata -> fdata.flocals <- Translate.reset_function fdata.fconsts) functions;
+          ignore (List.fold_left (Translate.translate 0 StringMap.empty) globals (List.rev constants))
         with 
           | Failure(s) -> print_endline s; exit 0 
           | Sys_error(s) -> print_endline s; exit 0)

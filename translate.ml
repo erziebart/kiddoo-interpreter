@@ -22,6 +22,23 @@ let map_filter_depth depth map =
   in
   StringMap.filter (fun _ ls -> ls <> []) (StringMap.map filter map)
 
+let map_append depth = StringMap.fold (fun k v m -> map_add k (v,depth) m)
+
+(* returns the reset dynamic constant values for a function *)
+let reset_function consts = 
+  List.fold_left (
+    List.fold_left (
+      fun m k -> StringMap.add k (Obj(dat_false,true)) m 
+    )
+  ) 
+  StringMap.empty (List.map (fun cdata -> cdata.names) consts)
+
+(* returns updated local values given a map of current constants *)
+let update_locals locals consts = 
+  StringMap.fold (
+    fun k v m -> StringMap.add k (fst (map_find k consts)) m
+  ) locals locals
+
 (* unique set ids *)
 let set_uuid = ref 0
 let get_uuid () = let res = !set_uuid in incr set_uuid; res
@@ -149,6 +166,7 @@ let rec translate depth fconsts consts data =
 
               (* produces the result of calling the function with given arguments *)
               let make_call args fargs = 
+                let outer = map_append (depth+1) fdata.flocals outer in (* adding dynamic constants *)
                 let add_arg map id value = map_add id (value,depth+1) map in
                 let locals = if List.length params = 1 
                   then add_arg outer (List.hd params) (Obj(obj_of_list args))
@@ -158,12 +176,16 @@ let rec translate depth fconsts consts data =
                   | Invalid_argument(s) -> raise(Failure("wrong number of function arguments for " ^ id))
                 in
                 let locals = List.fold_left (translate (depth+1) flocals) locals fdata.fconsts in
-                eval locals flocals fdata.fcalls fdata.e
+                let result = eval locals flocals fdata.fcalls fdata.e in
+                fdata.flocals <- update_locals fdata.flocals locals; (* update dynamic constants *) 
+                result
               in
 
               (* calls the function for all arguments in the set *)
               let rec map_call = function
-                | Obj(t,u) -> make_call (list_of_obj (t,u)) fvalues
+                | Obj(t,u) -> (
+                    List.iter (fun fdata -> fdata.flocals <- reset_function fdata.fconsts) fdata.fnested;
+                    make_call (list_of_obj (t,u)) fvalues )
                 | Set(id,elts) -> Set(id, List.map map_call elts)
               in
               map_call (set_of_list values) ) )
@@ -199,6 +221,7 @@ let rec translate depth fconsts consts data =
   in
 
   (* translate body *)
+  List.iter (fun fdata -> fdata.flocals <- reset_function fdata.fconsts) data.nested;
   let consts = List.fold_left (translate (depth+1) fconsts) consts data.consts in
   let results = List.map (eval consts fconsts data.calls) data.exprs in
   match data.names with

@@ -1,0 +1,7 @@
+def func() =
+  con a = a + 1; 0
+  -> a
+
+-> func()
+-> func()
+-> func()
