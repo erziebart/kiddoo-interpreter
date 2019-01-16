@@ -1,4 +1,5 @@
 open Ast
+open Datatypes
 
 module StringMap = Map.Make(String)
 
@@ -9,6 +10,8 @@ type fundata = {
   e: expr;
   mutable fconsts: condata list;
   mutable fcalls: fundata StringMap.t;
+  mutable fnested: fundata list;
+  mutable flocals: set StringMap.t;
   depth: int;
 }
 and condata = {
@@ -16,6 +19,7 @@ and condata = {
   exprs: expr list;
   mutable consts: condata list;
   mutable calls: fundata StringMap.t;
+  mutable nested: fundata list;
 }
 
 type ctree = 
@@ -27,7 +31,7 @@ type ctree =
 exception Found
 
 (* checks a single stmt and adds it to the call tree *)
-let rec check_stmt depth (calltree,constants) = 
+let rec check_stmt depth (calltree,constants,functions) = 
 
   (* helper functions to search for function or constant ids *)
   let rec find_value depth name = function
@@ -61,8 +65,8 @@ let rec check_stmt depth (calltree,constants) =
         try (
           let fdata = find_func (depth+1) id calltree in
           let farlen = List.length fdata.fparams and arlen = List.length fdata.params in
-          if compare farlen (List.length fargs) = 0 then
-            if compare arlen (List.length args) = 0 || arlen = 1 then
+          if Pervasives.compare farlen (List.length fargs) = 0 then
+            if Pervasives.compare arlen (List.length args) = 0 || arlen = 1 then
               let funptrs = List.fold_left (check_expr calltree) funptrs args in
               let funptrs = List.fold_left (find_and_add calltree) funptrs fargs in
               StringMap.add id fdata funptrs
@@ -101,6 +105,8 @@ let rec check_stmt depth (calltree,constants) =
     e=expr; 
     fconsts=[]; 
     fcalls=StringMap.empty; 
+    fnested=[];
+    flocals=StringMap.empty;
     depth=depth
   } 
   in
@@ -112,6 +118,7 @@ let rec check_stmt depth (calltree,constants) =
         exprs=exprs;
         consts=[];
         calls=StringMap.empty;
+        nested=[];
       }  
     else raise(Failure("incompatible constant assignment: " 
       ^ (string_of_int nl) ^ "!=" ^ (string_of_int el)))
@@ -124,31 +131,31 @@ let rec check_stmt depth (calltree,constants) =
       let expr = if List.length exprs = 1 then List.hd exprs else Tuple(exprs) in
       let data = init_func func expr in
       let head = Fundecl(data, calltree) in
-      let (call_branch, consts) = List.fold_left (check_stmt (depth+1)) (head, []) decls in
+      let (call_branch, consts, fns) = List.fold_left (check_stmt (depth+1)) (head, [], []) decls in
       let funptrs = check_expr call_branch StringMap.empty expr in
-      data.fconsts <- List.rev consts; data.fcalls <- funptrs;
-      head, constants )
+      data.fconsts <- List.rev consts; data.fcalls <- funptrs; data.fnested <- fns;
+      head, constants, data :: functions )
   | Constant(names,def) -> (
       let (decls,exprs) = parse_def def in
       let data = init_const names exprs in
       let head = Condecl(data,depth,calltree) in
-      let (call_branch, consts) = List.fold_left (check_stmt (depth+1)) (head, []) decls in
+      let (call_branch, consts, fns) = List.fold_left (check_stmt (depth+1)) (head, [], []) decls in
       let funptrs = List.fold_left (check_expr call_branch) StringMap.empty exprs in
-      data.consts <- List.rev consts; data.calls <- funptrs;
-      head, data :: constants )
+      data.consts <- List.rev consts; data.calls <- funptrs; data.nested <- fns;
+      head, data :: constants, functions )
   | Expression(exprs) -> (
       let names = ["->"] in
       let data = init_const names exprs in
       let head = Condecl(data,depth,calltree) in
       let funptrs = List.fold_left (check_expr head) StringMap.empty exprs in
       data.calls <- funptrs;
-      head, data :: constants )
+      head, data :: constants, functions )
   | Import(file) -> (
       let import = file ^ ".klib" in
       try (
         let ic = open_in import in 
         let lexbuf = Lexing.from_channel ic in
         let ast = Parser.program Scanner.token lexbuf in
-        List.fold_left (check_stmt depth) (calltree,constants) ast )
+        List.fold_left (check_stmt depth) (calltree,constants,functions) ast )
       with
-      | Sys_error(_) -> print_endline ("cannot use file " ^ file); calltree, constants )
+      | Sys_error(_) -> print_endline ("cannot use file " ^ file); calltree, constants, functions )

@@ -1,0 +1,10 @@
+def choose(n,k) = 
+    con l = n-k
+    def binomial(b) =
+        def product(i) =
+            con prod = prod * (n-i+1)//i ; 1
+            -> prod
+        -> product([:b+1]).(-1)
+    -> (0/(k<0|l<0) ; binomial(l/(l<k);k)) / (n>=0)
+
+-> choose(50,25)

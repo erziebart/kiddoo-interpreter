@@ -1,0 +1,9 @@
+def func() =
+  con a = 0
+  def funcA() = 
+    con b = a
+    -> b
+  con a = 1
+  -> funcA()
+
+-> func()

@@ -1,0 +1,5 @@
+def loopsum(i) =
+  con x = x + i ; i
+  -> x
+
+-> loopsum([1:25:3])
