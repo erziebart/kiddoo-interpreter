@@ -59,6 +59,7 @@ decl:
     DEFINE func ASSIGN def { Function($2, $4) }
   | CONST id_list ASSIGN def { Constant(List.rev $2, $4) }
   | LIB DEFINE func { Function($3, None) }
+  | USE ID { Import($2) }
 
 func:
     ID { { fname = $1; fparams = []; locals = [] } }
